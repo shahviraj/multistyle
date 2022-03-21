@@ -2,7 +2,7 @@ from matplotlib import pyplot as plt
 import torch
 import torch.nn.functional as F
 import os
-import cv2
+#import cv2
 import dlib
 from PIL import Image
 import numpy as np
