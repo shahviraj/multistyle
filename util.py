@@ -1,3 +1,4 @@
+
 from matplotlib import pyplot as plt
 import torch
 import torch.nn.functional as F
@@ -11,6 +12,7 @@ import torchvision
 import scipy
 import scipy.ndimage
 import torchvision.transforms as transforms
+import wandb
 
 google_drive_paths = {
     "models/stylegan2-ffhq-config-f.pt": "https://drive.google.com/uc?id=1Yr7KuD959btpmcKGAUsbAk5rPjX2MytK",
@@ -85,7 +87,7 @@ def load_source(files, generator, device='cuda'):
         
     return sources
 
-def display_image(image, size=None, mode='nearest', unnorm=False, title=''):
+def display_image(image, size=None, mode='nearest', unnorm=False, title='', save=False, use_wandb=False):
     # image is [3,h,w] or [1,3,h,w] tensor [0,1]
     if not isinstance(image, torch.Tensor):
         image = transforms.ToTensor()(image).unsqueeze(0)
@@ -100,6 +102,12 @@ def display_image(image, size=None, mode='nearest', unnorm=False, title=''):
     plt.title(title)
     plt.axis('off')
     plt.imshow(image)
+    if save:
+        plt.savefig(title+'.png')
+        print("saved image")
+    if use_wandb:
+        wandb.log({title: [wandb.Image(image)]})
+
 
 def get_landmark(filepath, predictor):
     """get landmark with dlib
@@ -128,8 +136,8 @@ def align_face(filepath, output_size=1024, transform_size=4096, enable_padding=T
     :param filepath: str
     :return: PIL Image
     """
-    ensure_checkpoint_exists("models/dlibshape_predictor_68_face_landmarks.dat")
-    predictor = dlib.shape_predictor("models/dlibshape_predictor_68_face_landmarks.dat")
+    ensure_checkpoint_exists("../../models/multistyle/shape_predictor_68_face_landmarks.dat")
+    predictor = dlib.shape_predictor("../../models/multistyle/shape_predictor_68_face_landmarks.dat")
     lm = get_landmark(filepath, predictor)
 
     lm_chin = lm[0: 17]  # left-right
