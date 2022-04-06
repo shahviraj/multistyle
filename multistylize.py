@@ -19,15 +19,19 @@ from model import *
 from e4e_projection import projection as e4e_projection
 from copy import deepcopy
 
-splatting = True
-run_name = 'splatting_with_two_styles_nonzero'
-run_desc = 'Splatting using two styles, but instead of zero-ing out the block, we set it to a very small (1e-3*rand_uniform) random values'
-names = ['arcane_jinx.png', 'jojo.png']
+splatting = False
+learning = False
+if splatting and learning:
+    raise ValueError("both splatting and learning can't be True!")
+run_name = 'single_style_baseline_arcane_jinx'
+run_desc = 'obtaining baseline using only one style'
+names = ['arcane_jinx.png']
 fake_splatting = False
 preserve_color = False
-per_style_iter = 50
+per_style_iter = None
 num_iter = 1000
 use_wandb = True
+dir_act = 'tanh'
 log_interval = 100
 learning_rate = 2e-3
 alpha = 0.7
@@ -60,6 +64,36 @@ def perform_splat_only_on_one(latent, id_swap):
     splat_latent[0, id_swap, 0:blocksize] = 0.0
 
     return splat_latent
+
+class DirNet(nn.Module):
+    def __init__(
+            self, in_dim, out_dim, n_out, n_indx, bias=True, bias_init=0, lr_mul=1, activation=None, device='cpu'
+    ):
+        super().__init__()
+        self.n_indx = n_indx # index of the style code that is to be used in style mixing
+        self.n_out = n_out
+        self.layers = []
+        for i in range(n_out):
+            self.layers.append(EqualLinearAct(in_dim, out_dim, bias, bias_init, lr_mul, activation).to(device))
+
+    def forward(self, input):
+
+        if len(input.shape) == 4:
+            outs = input.clone()
+            for k in range(input.shape[0]):
+                for i in range(self.n_out):
+                    for j in self.n_indx:
+                        outs[k, i, j, :] = self.layers[i](input[k, i, j, :])
+        elif len(input.shape) == 3:
+            outs = input.clone()
+            for i in range(self.n_out):
+                for j in self.n_indx:
+                    outs[i, j, :] = self.layers[i](input[i, j, :])
+        else:
+            raise NotImplementedError("not implemented when the input tensor is 2-dimensional")
+
+        return outs
+
 
 # Load original generator
 original_generator = Generator(1024, latent_dim, 8, 2).to(device)
@@ -148,7 +182,7 @@ original_my_sample = original_generator(my_w, input_is_latent=True)
 
 generator = deepcopy(original_generator)
 del original_generator
-g_optim = optim.Adam(generator.parameters(), lr=learning_rate, betas=(0, 0.99))
+
 
 # Which layers to swap for generating a family of plausible real images -> fake image
 if preserve_color:
@@ -156,9 +190,19 @@ if preserve_color:
 else:
     id_swap = list(range(7, generator.n_latent))
 
+if fake_splatting:
+    n_styles = len(names) + 1
+else:
+    n_styles = len(names)
+
+dirnet = DirNet(latent_dim, latent_dim, n_styles, id_swap, activation=dir_act, device=device).to(device)
+if learning:
+    g_optim = optim.Adam(list(generator.parameters()) + list(dirnet.parameters()), lr=learning_rate, betas=(0, 0.99))
+else:
+    g_optim = optim.Adam(generator.parameters(), lr=learning_rate, betas=(0, 0.99))
 
 if use_wandb:
-    wandbrun = wandb.init(project="multistyle", entity='shahviraj', name=run_name,
+    wandbrun = wandb.init(project="multistyle", entity='shahviraj', name=run_name, dir = '../../outputs/multistyle/wandb/',
                notes='{}. Alpha is {}. Splatting is {}. Stlyes used: {}. Ids swapped: {}.'.format(run_desc, alpha, splatting, names, id_swap))
     config = wandb.config
     config.num_iter = num_iter
@@ -173,10 +217,6 @@ if use_wandb:
         {"Style reference": [wandb.Image(transforms.ToPILImage()(target_im))]},
         step=0)
 
-if fake_splatting:
-    n_styles = len(names) + 1
-else:
-    n_styles = len(names)
 
 for idx in tqdm(range(num_iter)):
     mean_w = generator.get_latent(torch.randn([latents.size(0), latent_dim]).to(device)).unsqueeze(1).repeat(1,
@@ -190,6 +230,8 @@ for idx in tqdm(range(num_iter)):
             in_latent = perform_splat_only_on_one(in_latent, id_swap)
         else:
             in_latent = perform_splat(in_latent, id_swap)
+    elif learning:
+            in_latent = dirnet(in_latent)
 
     img = generator(in_latent, input_is_latent=True)
 
@@ -218,10 +260,15 @@ for idx in tqdm(range(num_iter)):
                     stylized_my_w_eval[:, id_swap,
                     i * (int(latent_dim / n_styles)):(i + 1) * (int(latent_dim / n_styles))] = 0.0
                     my_samples_eval.append(generator(stylized_my_w_eval, input_is_latent=True))
+            elif learning:
+                my_samples_eval = []
+                stylized_my_w_eval = dirnet(my_w.repeat([n_styles, 1, 1]))
+                for i in range(len(names)):
+                    my_samples_eval.append(generator(stylized_my_w_eval[i,...].unsqueeze(0), input_is_latent=True))
             else:
                 my_sample = generator(my_w, input_is_latent=True)
             generator.train()
-            if splatting:
+            if splatting or learning:
                 for i in range(len(names)):
                     my_sample = transforms.ToPILImage()(utils.make_grid(my_samples_eval[i], normalize=True, range=(-1, 1)))
                     wandb.log(
@@ -254,6 +301,12 @@ with torch.no_grad():
             stylized_w = w.clone()
             stylized_w[:,id_swap, i*(int(latent_dim/n_styles)):(i+1)*(int(latent_dim/n_styles))] = 0.0
             samples.append(generator(stylized_w, input_is_latent=True))
+    elif learning:
+        w = generator.get_latent(z).unsqueeze(1).unsqueeze(1).repeat(1, n_styles, generator.n_latent, 1) # output becomes n_images x n_styles x 18 x 512
+        stylized_w = dirnet(w)  # output becomes n_images x n_styles x 18 x 512 -- but contains stylized directions
+        samples = []
+        for i in range(n_styles):
+            samples.append(generator(stylized_w[:, i,...], input_is_latent=True))
     else:
         sample = generator([z], truncation=0.7, truncation_latent=mean_latent)
 
@@ -264,6 +317,11 @@ with torch.no_grad():
             stylized_my_w = my_w.clone()
             stylized_my_w[:,id_swap, i*(int(latent_dim/n_styles)):(i+1)*(int(latent_dim/n_styles))] = 0.0
             my_samples.append(generator(stylized_my_w, input_is_latent=True))
+    elif learning:
+        my_samples = []
+        stylized_my_w = dirnet(my_w.repeat([n_styles, 1, 1]))
+        for i in range(len(names)):
+            my_samples.append(generator(stylized_my_w[i,...].unsqueeze(0), input_is_latent=True))
     else:
         my_sample = generator(my_w, input_is_latent=True)
 
@@ -279,7 +337,7 @@ style_images = torch.stack(style_images, 0).to(device)
 display_image(utils.make_grid(style_images, normalize=True, range=(-1, 1)), title='References',
               save=True, use_wandb=use_wandb)
 
-if splatting:
+if splatting or learning:
     for i in range(len(names)):
         my_output = torch.cat([face, my_samples[i]], 0)
         display_image(utils.make_grid(my_output, normalize=True, range=(-1, 1)), title='Training sample'.format(i,num_iter,alpha),
@@ -288,7 +346,7 @@ else:
     my_output = torch.cat([face, my_sample], 0)
     display_image(utils.make_grid(my_output, normalize=True, range=(-1, 1)), title='My sample')
 
-if splatting:
+if splatting or learning:
     for i in range(len(names)):
         output = torch.cat([original_sample, samples[i]], 0)
         display_image(utils.make_grid(output, normalize=True, range=(-1, 1), nrow=n_sample),

@@ -103,7 +103,7 @@ def display_image(image, size=None, mode='nearest', unnorm=False, title='', save
     plt.axis('off')
     plt.imshow(image)
     if save:
-        plt.savefig(title+'.png')
+        plt.savefig('../../outputs/multistyle/png_samples/'+title+'.png')
         print("saved image")
     if use_wandb:
         wandb.log({title: [wandb.Image(image)]})
