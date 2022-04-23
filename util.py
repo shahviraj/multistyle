@@ -102,6 +102,7 @@ def display_image(image, size=None, mode='nearest', unnorm=False, title='', save
     plt.title(title)
     plt.axis('off')
     plt.imshow(image)
+    plt.show()
     if save:
         plt.savefig('../../outputs/multistyle/png_samples/'+title+'.png')
         print("saved image")

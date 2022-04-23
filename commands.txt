@@ -1,0 +1,15 @@
+# Inversion using Restyle
+
+LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda-9.0/lib64/ python scripts/inference_iterative.py --exp_dir=../../../outputs/multistyle/inversion/restyle_encoder/ --checkpoint_path=../../../models/multistyle/restyle_psp_ffhq_encode.pt --data_path=../../multistyle/style_images_aligned/ --test_batch_size=4 --test_workers=4 --n_iters_per_batch=5
+
+# Inversion using Projection (stylegan2-ada-pytorch code)
+
+for FILE in ../../multistyle/style_images_aligned ; do LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda-9.0/lib64/ python projector.py --outdir=../../../outputs/multistyle/inversion/stylegan2_projection/ --target=$FILE --network=../../../models/ffhq.pkl; done
+
+# Inversion using HFGI
+
+LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda-9.0/lib64/ python ./scripts/inference.py --images_dir=../multistyle/style_images_aligned/  --n_sample=10 --edit_attribute='inversion' --save_dir=../../../outputs/multistyle/inversion/hfgi/ ../../../models/multistyle/hfgi.pt
+
+# Inversion using e4e
+
+LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda-9.0/lib64/ python scripts/inference.py --images_dir=/path/to/images/directory --save_dir=/path/to/saving/directory path/to/checkpoint.pt

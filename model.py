@@ -174,12 +174,15 @@ class EqualLinear(nn.Module):
 
 class EqualLinearAct(nn.Module):
     def __init__(
-        self, in_dim, out_dim, bias=True, bias_init=0, lr_mul=1, activation=None
+        self, in_dim, out_dim, init='identity', bias=True, bias_init=0, lr_mul=1, activation=None
     ):
         super().__init__()
-
-        self.weight = nn.Parameter(torch.randn(out_dim, in_dim).div_(lr_mul))
-
+        if init == 'identity':
+            self.weight = nn.Parameter(torch.eye(out_dim, in_dim).div_(lr_mul))
+        elif init == 'randn':
+            self.weight = nn.Parameter(torch.randn(out_dim, in_dim).div_(lr_mul))
+        else:
+            raise NotImplementedError('this type of init is not supported yet!')
         if bias:
             self.bias = nn.Parameter(torch.zeros(out_dim).fill_(bias_init))
 
@@ -199,7 +202,7 @@ class EqualLinearAct(nn.Module):
             out = F.linear(
                 input, self.weight * self.scale, bias=self.bias * self.lr_mul
             )
-            out = F.tanh(out)
+            out = torch.tanh(out)
         elif self.activation == None:
             out = F.linear(
                 input, self.weight * self.scale, bias=self.bias * self.lr_mul
