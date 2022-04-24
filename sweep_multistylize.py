@@ -25,18 +25,18 @@ hyperparam_defaults = dict(
     splatting = False,
     learning = True,
     names = ['jojo_yasuho.png', 'jojo.png'],#, 'jojo.png'],
-    filenamelist = ['iu.jpeg', 'joker.png'],
+    filenamelist = ['iu.jpeg', 'arnold.jpeg','chris.jpeg', 'gal.jpeg'],
     fake_splatting = False,
     preserve_color = False,
     per_style_iter = None,
-    num_iter = 5,
+    num_iter = 500,
     dir_act = 'tanh',
     init = 'identity',
-    log_interval = 2,
+    log_interval = 100,
     learning_rate = 2e-3,
     alpha = 0.7,
     n_sample = 5,  # @param {type:"number"},
-    seed = 3000,  # @param {type:"number"},
+    seed = 9,  # @param {type:"number"},
 )
 
 

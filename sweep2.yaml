@@ -1,0 +1,12 @@
+program: sweep_multistylize.py
+method: grid
+metric:
+  goal: minimize
+  name: loss
+parameters:
+  names:
+    values: [['jojo_yasuho.png', 'sketch.png', 'arcane_jinx.png'], ['jojo_yasuho.png','jojo.png', 'sketch.png'], ['art.png', 'disney.png', 'arcane_jinx.png', 'jojo_yasuho.png'],['jojo_yasuho.png','arcane_jinx.png', 'sketch.png', 'arcane_caitlyn.png']]
+  num_iter:
+    values: [400, 1000]
+  alpha:
+    values: [0.3, 0.5]
