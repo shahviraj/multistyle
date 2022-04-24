@@ -25,13 +25,13 @@ if splatting and learning:
     raise ValueError("both splatting and learning can't be True!")
 run_name = 'four_styles_fixed_bug_learnt_dirs_tanh_identity_init'
 run_desc = 'learning four styles at once, using learnable directions using single layer FCN, with tanh activations and identity matrix as initialization'
-names = ['arcane_jinx.png', 'jojo.png', 'sketch.png', 'arcane_caitlyn.png']
+names = ['jojo.png', 'jojo_yasuho.png']#, 'sketch.png', 'arcane_caitlyn.png']
 fake_splatting = False
 preserve_color = False
 init = 'identity'
 per_style_iter = None
 num_iter = 1000
-use_wandb = True
+use_wandb = False
 dir_act = 'tanh'
 log_interval = 100
 learning_rate = 2e-3
@@ -77,8 +77,6 @@ class DirNet(nn.Module):
         for i in range(n_out):
             eqlinlayers.append(EqualLinearAct(in_dim, out_dim, init, bias, bias_init, lr_mul, activation).to(device))
         self.layers = nn.ModuleList(eqlinlayers) # crucial in order to register every layer in the list properly
-
-        self.conv = nn.Conv2d(1,1,3)
 
     def forward(self, input):
         if len(input.shape) == 4:

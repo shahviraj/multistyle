@@ -13,3 +13,11 @@ LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda-9.0/lib64/ python ./scripts/inf
 # Inversion using e4e
 
 LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda-9.0/lib64/ python scripts/inference.py --images_dir=/path/to/images/directory --save_dir=/path/to/saving/directory path/to/checkpoint.pt
+
+
+# calculate eigenvalues and angles
+
+e1, w1 = np.linalg.eig(dirnet.layers[0].weight.detach().cpu().numpy())
+v1 = w1[:,0]
+v2 = w2[:,1]
+np.arccos(np.clip(np.dot(v1, v2), -1.0, 1.0))

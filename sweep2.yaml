@@ -1,4 +1,6 @@
 program: sweep_multistylize.py
+name: four_styles
+project: multistyle
 method: grid
 metric:
   goal: minimize
