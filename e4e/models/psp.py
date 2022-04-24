@@ -1,6 +1,6 @@
-#import matplotlib
+import matplotlib
 
-#matplotlib.use('Agg')
+matplotlib.use('Agg')
 import torch
 from torch import nn
 from e4e.models.encoders import psp_encoders
