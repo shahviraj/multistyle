@@ -1,5 +1,3 @@
-
-
 import torch
 torch.backends.cudnn.benchmark = True
 from torchvision import transforms, utils
@@ -16,6 +14,7 @@ from torch.nn import functional as F
 from tqdm import tqdm
 #import wandb
 from model import *
+
 from e4e_projection import projection as e4e_projection
 from copy import deepcopy
 
@@ -99,7 +98,7 @@ class DirNet(nn.Module):
             eqlinlayers.append(EqualLinearAct(in_dim, out_dim, init, bias, bias_init, lr_mul, activation).to(device))
         self.layers = nn.ModuleList(eqlinlayers) # crucial in order to register every layer in the list properly
 
-        self.conv = nn.Conv2d(1,1,3)
+
 
     def forward(self, input):
         if len(input.shape) == 4:
@@ -271,9 +270,9 @@ for idx in tqdm(range(config['num_iter'])):
                     my_samples_eval.append(generator(stylized_my_ws_eval, input_is_latent=True))
             elif config['learning']:
                 my_samples_eval = []
-                stylized_my_ws_eval = dirnet(my_ws.repeat([n_styles, 1 , 1, 1]))
+                stylized_my_ws_eval = dirnet(my_ws.unsqueeze(1).repeat([1, n_styles , 1, 1])) # input and output are n_image x n_Style x 18 x 512
                 for i in range(len(config['names'])):
-                    my_samples_eval.append(generator(stylized_my_ws_eval[i,...], input_is_latent=True))
+                    my_samples_eval.append(generator(stylized_my_ws_eval[:, i,...], input_is_latent=True))
             else:
                 my_sample = generator(my_ws, input_is_latent=True)
             generator.train()
@@ -325,9 +324,9 @@ with torch.no_grad():
             my_samples.append(generator(stylized_my_w, input_is_latent=True))
     elif config['learning']:
         my_samples = []
-        stylized_my_w = dirnet(my_ws.repeat([n_styles, 1 , 1, 1]))
+        stylized_my_w = dirnet(my_ws.unsqueeze(1).repeat([1, n_styles , 1, 1]))
         for i in range(len(config['names'])):
-            my_samples.append(generator(stylized_my_w[i,...], input_is_latent=True))
+            my_samples.append(generator(stylized_my_w[:, i,...], input_is_latent=True))
     else:
         my_sample = generator(my_ws, input_is_latent=True)
 
