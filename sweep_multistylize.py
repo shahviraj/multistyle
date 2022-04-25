@@ -203,7 +203,7 @@ my_ws = torch.stack(my_wlist, 0)
 target_im = utils.make_grid(targets, normalize=True, range=(-1, 1))
 display_image(target_im, title='Style References', save=True)
 
-with torch.no_grad:
+with torch.no_grad():
     original_generator.eval()
     inv_styles = original_generator(latents, input_is_latent=True)
     inv_tests = original_generator(my_ws, input_is_latent=True)
