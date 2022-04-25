@@ -16,21 +16,23 @@ from tqdm import tqdm
 from model import *
 
 from e4e_projection import projection as e4e_projection
+from restyle_projection import restyle_projection
 from copy import deepcopy
 
-use_wandb = False
+use_wandb = True
 
 hyperparam_defaults = dict(
     splatting = False,
     learning = True,
-    names = ['jojo_yasuho.png', 'jojo.png'],#, 'jojo.png'],
-    filenamelist = ['iu.jpeg', 'arnold.jpeg','chris.jpeg', 'gal.jpeg', 'joker.png', 'tom.jpeg'],
+    names = ['jojo.png', 'arcane_jinx.png'],#, 'jojo.png'],
+    filenamelist = ['iu.jpeg'],
     fake_splatting = False,
     preserve_color = False,
     per_style_iter = None,
     num_iter = 500,
     dir_act = 'tanh',
     init = 'identity',
+    inv_method = 'restyle',
     log_interval = 100,
     learning_rate = 2e-3,
     alpha = 0.7,
@@ -98,8 +100,6 @@ class DirNet(nn.Module):
             eqlinlayers.append(EqualLinearAct(in_dim, out_dim, init, bias, bias_init, lr_mul, activation).to(device))
         self.layers = nn.ModuleList(eqlinlayers) # crucial in order to register every layer in the list properly
 
-
-
     def forward(self, input):
         if len(input.shape) == 4:
             outs = input.clone()
@@ -142,16 +142,28 @@ transform = transforms.Compose(
 testimglist = []
 my_wlist = []
 aligned_facelist = []
-for i, filepath in enumerate(filepathlist):
-    testimglist.append(strip_path_extension(filepath)+'.pt')
-    aligned_face =  align_face(filepath)
-    test_aligned_path = strip_path_extension(filepath) + '_aligned.png'
-    aligned_face.save(test_aligned_path)
+for i, file in enumerate(config['filenamelist']):
+    imgname = strip_path_extension(file)
+    unaligned_img_path = f'test_input/{file}'
+    aligned_img_path = f'test_input_aligned/{imgname}_aligned.png'
+    if os.path.exists(aligned_img_path):
+        aligned_face = Image.open(aligned_img_path).convert('RGB')
+    else:
+        aligned_face = align_face(unaligned_img_path)
     aligned_facelist.append(aligned_face)
-    my_w = e4e_projection(aligned_face, testimglist[i], device)
-    my_wlist.append(my_w)
-    display_image(aligned_face, title='Aligned face', save=True)
 
+    inv_code_path = os.path.join(f'../../models/multistyle/{config["inv_method"]}_inversion_codes', f'{imgname}_aligned.pt')
+    if os.path.exists(inv_code_path):
+        my_w = torch.load(inv_code_path)['latent']
+    else:
+        testimglist.append(inv_code_path)
+        if config['inv_method'] == 'e4e':
+            my_w = e4e_projection(aligned_face, testimglist[i], device)
+        elif config['inv_method'] == 'restyle':
+            my_w = restyle_projection(aligned_face, testimglist[i], device)
+        else:
+            raise NotImplementedError
+    my_wlist.append(my_w)
 # my_w = restyle_projection(aligned_face, name, device, n_iters=1).unsqueeze(0)
 
 targets = []
@@ -170,9 +182,14 @@ for name in config['names']:
         style_aligned = Image.open(style_aligned_path).convert('RGB')
 
     # GAN invert
-    style_code_path = os.path.join('../../models/multistyle/inversion_codes', f'{name}.pt')
+    style_code_path = os.path.join(f'../../models/multistyle/{config["inv_method"]}_inversion_codes', f'{name}.pt')
     if not os.path.exists(style_code_path):
-        latent = e4e_projection(style_aligned, style_code_path, device)
+        if config['inv_method'] == 'e4e':
+            latent = e4e_projection(style_aligned, style_code_path, device)
+        elif config['inv_method'] == 'restyle':
+            latent = restyle_projection(style_aligned, style_code_path, device)
+        else:
+            raise NotImplementedError
     else:
         latent = torch.load(style_code_path)['latent']
 
@@ -186,6 +203,15 @@ my_ws = torch.stack(my_wlist, 0)
 target_im = utils.make_grid(targets, normalize=True, range=(-1, 1))
 display_image(target_im, title='Style References', save=True)
 
+with torch.no_grad:
+    original_generator.eval()
+    inv_styles = original_generator(latents, input_is_latent=True)
+    inv_tests = original_generator(my_ws, input_is_latent=True)
+    display_image(utils.make_grid(inv_styles, normalize=True, range=(-1, 1)), title='Reference Inversions',
+                  save=False, use_wandb=use_wandb)
+    display_image(utils.make_grid(my_ws, normalize=True, range=(-1, 1)), title='Input Inversions',
+                  save=False, use_wandb=use_wandb)
+    original_generator.train()
 # @param {type:"slider", min:0, max:1, step:0.1}
 #alpha = 1 - alpha
 
@@ -301,9 +327,7 @@ with torch.no_grad():
     generator.eval()
 
     if config['splatting']:
-
         w = generator.get_latent(z).unsqueeze(1).repeat(1,generator.n_latent,1)
-
         samples = []
         for i in range(len(config['names'])):
             stylized_w = w.clone()
