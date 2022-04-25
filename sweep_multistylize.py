@@ -18,13 +18,13 @@ from model import *
 from e4e_projection import projection as e4e_projection
 from copy import deepcopy
 
-use_wandb = True
+use_wandb = False
 
 hyperparam_defaults = dict(
     splatting = False,
     learning = True,
     names = ['jojo_yasuho.png', 'jojo.png'],#, 'jojo.png'],
-    filenamelist = ['iu.jpeg', 'arnold.jpeg','chris.jpeg', 'gal.jpeg'],
+    filenamelist = ['iu.jpeg', 'arnold.jpeg','chris.jpeg', 'gal.jpeg', 'joker.png', 'tom.jpeg'],
     fake_splatting = False,
     preserve_color = False,
     per_style_iter = None,
@@ -145,6 +145,8 @@ aligned_facelist = []
 for i, filepath in enumerate(filepathlist):
     testimglist.append(strip_path_extension(filepath)+'.pt')
     aligned_face =  align_face(filepath)
+    test_aligned_path = strip_path_extension(filepath) + '_aligned.png'
+    aligned_face.save(test_aligned_path)
     aligned_facelist.append(aligned_face)
     my_w = e4e_projection(aligned_face, testimglist[i], device)
     my_wlist.append(my_w)

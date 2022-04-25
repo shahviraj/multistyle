@@ -17,21 +17,23 @@ from tqdm import tqdm
 #import wandb
 from model import *
 from e4e_projection import projection as e4e_projection
+from restyle_projection import restyle_projection
 from copy import deepcopy
 
 splatting = False
 learning = True
 if splatting and learning:
     raise ValueError("both splatting and learning can't be True!")
-run_name = 'four_styles_fixed_bug_learnt_dirs_tanh_identity_init'
-run_desc = 'learning four styles at once, using learnable directions using single layer FCN, with tanh activations and identity matrix as initialization'
-names = ['jojo.png', 'jojo_yasuho.png']#, 'sketch.png', 'arcane_caitlyn.png']
+run_name = 'restyle_two_styles_fixed_bug_learnt_dirs_tanh_identity_init'
+run_desc = 'learning two styles at once, using learnable directions using single layer FCN, with restyle inversion, with tanh activations and identity matrix as initialization'
+names = ['jojo.png', 'arcane_jinx.png']#, 'sketch.png', 'arcane_caitlyn.png']
 fake_splatting = False
 preserve_color = False
+inv_method = 'restyle'
 init = 'identity'
 per_style_iter = None
 num_iter = 1000
-use_wandb = False
+use_wandb = True
 dir_act = 'tanh'
 log_interval = 100
 learning_rate = 2e-3
@@ -121,11 +123,15 @@ name = strip_path_extension(filepath)+'.pt'
 
 # aligns and crops face
 aligned_face = align_face(filepath)
-
 # my_w = restyle_projection(aligned_face, name, device, n_iters=1).unsqueeze(0)
-my_w = e4e_projection(aligned_face, name, device).unsqueeze(0)
 
-display_image(aligned_face, title='Aligned face', save=True)
+if inv_method == 'e4e':
+    my_w = e4e_projection(aligned_face, name, device).unsqueeze(0)
+elif inv_method == 'restyle':
+    my_w = restyle_projection(aligned_face, name, device).unsqueeze(0)
+else:
+    raise NotImplementedError
+#display_image(aligned_face, title='Aligned face', save=True)
 
 
 #@param {type:"raw"}
@@ -146,9 +152,14 @@ for name in names:
         style_aligned = Image.open(style_aligned_path).convert('RGB')
 
     # GAN invert
-    style_code_path = os.path.join('../../models/multistyle/inversion_codes', f'{name}.pt')
+    style_code_path = os.path.join(f'../../models/multistyle/{inv_method}_inversion_codes', f'{name}.pt')
     if not os.path.exists(style_code_path):
-        latent = e4e_projection(style_aligned, style_code_path, device)
+        if inv_method == 'e4e':
+            latent = e4e_projection(style_aligned, style_code_path, device)
+        elif inv_method == 'restyle':
+            latent = restyle_projection(style_aligned, style_code_path, device)
+        else:
+            raise NotImplementedError
     else:
         latent = torch.load(style_code_path)['latent']
 

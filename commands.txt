@@ -8,7 +8,7 @@ for FILE in ../../multistyle/style_images_aligned ; do LD_LIBRARY_PATH=$LD_LIBRA
 
 # Inversion using HFGI
 
-LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda-9.0/lib64/ python ./scripts/inference.py --images_dir=../multistyle/style_images_aligned/  --n_sample=10 --edit_attribute='inversion' --save_dir=../../../outputs/multistyle/inversion/hfgi/ ../../../models/multistyle/hfgi.pt
+LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda-9.0/lib64/ python ./scripts/inference.py --images_dir=../../multistyle/style_images_aligned/  --n_sample=10 --edit_attribute='inversion' --save_dir=../../../outputs/multistyle/inversion/hfgi/ ../../../models/multistyle/hfgi.pt
 
 # Inversion using e4e
 
