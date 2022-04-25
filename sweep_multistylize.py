@@ -19,7 +19,7 @@ from model import *
 from e4e_projection import projection as e4e_projection
 from copy import deepcopy
 
-use_wandb = False
+use_wandb = True
 
 hyperparam_defaults = dict(
     splatting = False,
