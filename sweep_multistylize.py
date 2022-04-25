@@ -25,14 +25,14 @@ hyperparam_defaults = dict(
     splatting = False,
     learning = True,
     names = ['jojo.png', 'arcane_jinx.png'],#, 'jojo.png'],
-    filenamelist = ['iu.jpeg'],
+    filenamelist = ['iu.jpeg', 'chris.jpeg'],
     fake_splatting = False,
     preserve_color = False,
     per_style_iter = None,
-    num_iter = 500,
+    num_iter = 1000,
     dir_act = 'tanh',
     init = 'identity',
-    inv_method = 'restyle',
+    inv_method = 'hfgi',
     log_interval = 100,
     learning_rate = 2e-3,
     alpha = 0.7,
@@ -209,7 +209,7 @@ with torch.no_grad():
     inv_tests = original_generator(my_ws, input_is_latent=True)
     display_image(utils.make_grid(inv_styles, normalize=True, range=(-1, 1)), title='Reference Inversions',
                   save=False, use_wandb=use_wandb)
-    display_image(utils.make_grid(my_ws, normalize=True, range=(-1, 1)), title='Input Inversions',
+    display_image(utils.make_grid(inv_tests, normalize=True, range=(-1, 1)), title='Input Inversions',
                   save=False, use_wandb=use_wandb)
     original_generator.train()
 # @param {type:"slider", min:0, max:1, step:0.1}
