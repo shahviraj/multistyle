@@ -15,8 +15,8 @@ from tqdm import tqdm
 #import wandb
 from model import *
 
-from e4e_projection import projection as e4e_projection
-from restyle_projection import restyle_projection
+#from e4e_projection import projection as e4e_projection
+#from restyle_projection import restyle_projection
 from copy import deepcopy
 
 use_wandb = True
@@ -25,14 +25,14 @@ hyperparam_defaults = dict(
     splatting = False,
     learning = True,
     names = ['jojo.png', 'arcane_jinx.png'],#, 'jojo.png'],
-    filenamelist = ['iu.jpeg', 'chris.jpeg'],
+    filenamelist = ['iu.jpeg'],
     fake_splatting = False,
     preserve_color = False,
     per_style_iter = None,
     num_iter = 1000,
     dir_act = 'tanh',
     init = 'identity',
-    inv_method = 'hfgi',
+    inv_method = 'opt',
     log_interval = 100,
     learning_rate = 2e-3,
     alpha = 0.7,
@@ -163,7 +163,7 @@ for i, file in enumerate(config['filenamelist']):
             my_w = restyle_projection(aligned_face, testimglist[i], device)
         else:
             raise NotImplementedError
-    my_wlist.append(my_w)
+    my_wlist.append(my_w.to(device))
 # my_w = restyle_projection(aligned_face, name, device, n_iters=1).unsqueeze(0)
 
 targets = []
@@ -211,6 +211,8 @@ with torch.no_grad():
                   save=False, use_wandb=use_wandb)
     display_image(utils.make_grid(inv_tests, normalize=True, range=(-1, 1)), title='Input Inversions',
                   save=False, use_wandb=use_wandb)
+    del inv_styles
+    del inv_tests
     original_generator.train()
 # @param {type:"slider", min:0, max:1, step:0.1}
 #alpha = 1 - alpha
@@ -287,35 +289,35 @@ for idx in tqdm(range(config['num_iter'])):
 
     if use_wandb:
         wandb.log({"loss": loss}, step=idx)
-        if idx == 10 or idx % config['log_interval'] == (config['log_interval']-1):
-            generator.eval()
-            if config['splatting']:
-                my_samples_eval = []
-                for i in range(len(config['names'])):
-                    stylized_my_ws_eval = my_ws.clone()
-                    stylized_my_ws_eval[:, id_swap,
-                    i * (int(latent_dim / n_styles)):(i + 1) * (int(latent_dim / n_styles))] = 0.0
-                    my_samples_eval.append(generator(stylized_my_ws_eval, input_is_latent=True))
-            elif config['learning']:
-                my_samples_eval = []
-                stylized_my_ws_eval = dirnet(my_ws.unsqueeze(1).repeat([1, n_styles , 1, 1])) # input and output are n_image x n_Style x 18 x 512
-                for i in range(len(config['names'])):
-                    my_samples_eval.append(generator(stylized_my_ws_eval[:, i,...], input_is_latent=True))
-            else:
-                my_sample = generator(my_ws, input_is_latent=True)
-            generator.train()
-            if config['splatting'] or config['learning']:
-                for i in range(len(config['names'])):
-                    my_sample = transforms.ToPILImage()(utils.make_grid(my_samples_eval[i], nrow= my_samples_eval[i].shape[0], normalize=True, range=(-1, 1)))
-                    wandb.log(
-                        {"Current stylization {}".format(i): [wandb.Image(my_sample)]},
-                        step=idx)
-                del my_samples_eval, stylized_my_ws_eval, my_sample
-            else:
-                my_sample = transforms.ToPILImage()(utils.make_grid(my_sample, normalize=True, range=(-1, 1)))
-                wandb.log(
-                    {"Current stylization": [wandb.Image(my_sample)]},
-                    step=idx)
+        # if idx == 10 or idx % config['log_interval'] == (config['log_interval']-1):
+        #     generator.eval()
+        #     if config['splatting']:
+        #         my_samples_eval = []
+        #         for i in range(len(config['names'])):
+        #             stylized_my_ws_eval = my_ws.clone()
+        #             stylized_my_ws_eval[:, id_swap,
+        #             i * (int(latent_dim / n_styles)):(i + 1) * (int(latent_dim / n_styles))] = 0.0
+        #             my_samples_eval.append(generator(stylized_my_ws_eval, input_is_latent=True))
+        #     elif config['learning']:
+        #         my_samples_eval = []
+        #         stylized_my_ws_eval = dirnet(my_ws.unsqueeze(1).repeat([1, n_styles , 1, 1])) # input and output are n_image x n_Style x 18 x 512
+        #         for i in range(len(config['names'])):
+        #             my_samples_eval.append(generator(stylized_my_ws_eval[:, i,...], input_is_latent=True))
+        #     else:
+        #         my_sample = generator(my_ws, input_is_latent=True)
+        #     generator.train()
+        #     if config['splatting'] or config['learning']:
+        #         for i in range(len(config['names'])):
+        #             my_sample = transforms.ToPILImage()(utils.make_grid(my_samples_eval[i], nrow= my_samples_eval[i].shape[0], normalize=True, range=(-1, 1)))
+        #             wandb.log(
+        #                 {"Current stylization {}".format(i): [wandb.Image(my_sample)]},
+        #                 step=idx)
+        #         del my_samples_eval, stylized_my_ws_eval, my_sample
+        #     else:
+        #         my_sample = transforms.ToPILImage()(utils.make_grid(my_sample, normalize=True, range=(-1, 1)))
+        #         wandb.log(
+        #             {"Current stylization": [wandb.Image(my_sample)]},
+        #             step=idx)
 
     g_optim.zero_grad()
     loss.backward()
