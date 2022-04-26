@@ -15,8 +15,8 @@ from tqdm import tqdm
 #import wandb
 from model import *
 
-#from e4e_projection import projection as e4e_projection
-#from restyle_projection import restyle_projection
+from e4e_projection import projection as e4e_projection
+from restyle_projection import restyle_projection
 from copy import deepcopy
 
 use_wandb = True
@@ -25,7 +25,7 @@ hyperparam_defaults = dict(
     splatting = False,
     learning = True,
     names = ['jojo.png', 'arcane_jinx.png'],#, 'jojo.png'],
-    filenamelist = ['iu.jpeg'],
+    filenamelist = ['iu.jpeg', 'chris.jpeg', 'gal.jpeg'],
     fake_splatting = False,
     preserve_color = False,
     per_style_iter = None,
