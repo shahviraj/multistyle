@@ -1,0 +1,16 @@
+program: sweep_multistylize.py
+name: inv_sweep
+project: multistyle
+method: grid
+metric:
+  goal: minimize
+  name: loss
+parameters:
+  names:
+    values: [['jojo_yasuho.png', 'sketch.png'], ['jojo.png','arcane_jinx.png'],['jojo_yasuho.png','arcane_jinx.png'], ['jojo_yasuho.png','arcane_jinx.png', 'sketch.png']]
+  inv_method:
+    values: ['opt', 'restyle' , 'hfgi' , 'e4e']
+  num_iter:
+    values: [400, 800]
+  alpha:
+    values: [0.3, 0.5]
