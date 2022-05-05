@@ -96,9 +96,9 @@ class DirNetOrtho(nn.Module):
 
     def forward(self, input):
         if self.activation == 'relu':
-            act = nn.ReLU
+            act = nn.ReLU()
         elif self.activation == 'tanh':
-            act = nn.ReLU
+            act = nn.Tanh()
         else:
             act = nn.Identity
         if len(input.shape) == 4:
