@@ -100,7 +100,7 @@ class DirNetOrtho(nn.Module):
         elif self.activation == 'tanh':
             act = nn.Tanh()
         else:
-            act = nn.Identity
+            act = nn.Identity()
         if len(input.shape) == 4:
             outs = input.clone()
             for k in range(input.shape[0]):
