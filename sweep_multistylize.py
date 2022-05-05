@@ -1,3 +1,4 @@
+import scipy.stats
 import torch
 torch.backends.cudnn.benchmark = True
 from torchvision import transforms, utils
@@ -8,6 +9,7 @@ import random
 import os
 import wandb
 
+from model_utils import *
 import numpy as np
 from torch import nn, autograd, optim
 from torch.nn import functional as F
@@ -25,14 +27,15 @@ hyperparam_defaults = dict(
     splatting = False,
     learning = True,
     names = ['jojo.png', 'arcane_jinx.png'],#, 'jojo.png'],
-    filenamelist = ['iu.jpeg', 'chris.jpeg', 'gal.jpeg'],
+    filenamelist = ['iu.jpeg', 'chris.jpeg'],
     fake_splatting = False,
     preserve_color = False,
     per_style_iter = None,
-    num_iter = 1000,
+    num_iter = 400,
     dir_act = 'tanh',
-    init = 'identity',
-    inv_method = 'opt',
+    init = 'randn',
+    weight_type = 'ortho',
+    inv_method = 'e4e',
     log_interval = 100,
     learning_rate = 2e-3,
     alpha = 0.7,
@@ -67,56 +70,6 @@ for filename in config['filenamelist']:
 
 latent_dim = 512
 device = 'cuda'
-
-def perform_splat(latent, id_swap):
-    n_styles = latent.shape[0]
-    latent_dim = latent.shape[-1]
-    n_style_codes = latent.shape[1]
-    blocksize = int(latent_dim/n_styles)
-    splat_latent = latent.clone()
-    for i in range(n_styles):
-        #splat_latent[i, id_swap, i*blocksize:(i+1)*blocksize] = (1e-3)*torch.rand_like(splat_latent)[i, id_swap, i*blocksize:(i+1)*blocksize]
-        splat_latent[i, id_swap, i*blocksize:(i+1)*blocksize] = 0.0
-    return splat_latent
-
-def perform_splat_only_on_one(latent, id_swap):
-
-    blocksize = int(latent_dim/2)
-    splat_latent = latent.clone()
-
-    splat_latent[0, id_swap, 0:blocksize] = 0.0
-
-    return splat_latent
-
-class DirNet(nn.Module):
-    def __init__(
-            self, in_dim, out_dim, n_out, n_indx, init, bias=True, bias_init=0, lr_mul=1, activation=None, device='cpu'
-    ):
-        super(DirNet, self).__init__()
-        self.n_indx = n_indx # index of the style code that is to be used in style mixing
-        self.n_out = n_out
-        eqlinlayers = []
-        for i in range(n_out):
-            eqlinlayers.append(EqualLinearAct(in_dim, out_dim, init, bias, bias_init, lr_mul, activation).to(device))
-        self.layers = nn.ModuleList(eqlinlayers) # crucial in order to register every layer in the list properly
-
-    def forward(self, input):
-        if len(input.shape) == 4:
-            outs = input.clone()
-            for k in range(input.shape[0]):
-                for i in range(self.n_out):
-                    for j in self.n_indx:
-                        outs[k, i, j, :] = self.layers[i](input[k, i, j, :])
-        elif len(input.shape) == 3:
-            outs = input.clone()
-            for i in range(self.n_out):
-                for j in self.n_indx:
-                    outs[i, j, :] = self.layers[i](input[i, j, :])
-        else:
-            raise NotImplementedError("not implemented when the input tensor is 2-dimensional")
-
-        return outs
-
 
 # Load original generator
 original_generator = Generator(1024, latent_dim, 8, 2).to(device)
@@ -244,8 +197,16 @@ if config['fake_splatting']:
 else:
     n_styles = len(config['names'])
 
-dirnet = DirNet(latent_dim, latent_dim, n_styles, id_swap, init=config['init'], activation=config['dir_act'], device=device).to(device)
-
+if config['weight_type'] == 'diag':
+    dirnet = DirNetDiag(latent_dim, latent_dim, n_styles, id_swap, init=config['init'], activation=config['dir_act'],
+                    device=device).to(device)
+elif config['weight_type'] == 'ortho':
+    dirnet = DirNetOrtho(latent_dim, latent_dim, n_styles, id_swap, init=config['init'], activation=config['dir_act'],
+                        device=device).to(device)
+elif config['weight_type'] == 'std':
+    dirnet = DirNet(latent_dim, latent_dim, n_styles, id_swap, init=config['init'], activation=config['dir_act'], device=device).to(device)
+else:
+    raise NotImplementedError
 if config['learning']:
     g_optim = optim.Adam(list(generator.parameters()) + list(dirnet.parameters()), lr=config['learning_rate'], betas=(0, 0.99))
 else:
