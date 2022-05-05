@@ -88,23 +88,30 @@ class DirNetOrtho(nn.Module):
         super(DirNetOrtho, self).__init__()
         self.n_indx = n_indx # index of the style code that is to be used in style mixing
         self.n_out = n_out
+        self.activation = activation
         eqlinlayers = []
         for i in range(n_out):
-            eqlinlayers.append(nn.utils.parameterizations.orthogonal(EqualLinearAct(in_dim, out_dim, init, bias, bias_init, lr_mul, activation)).to(device))
+            eqlinlayers.append(nn.utils.parametrizations.orthogonal(nn.Linear(in_dim, out_dim, bias)).to(device))
         self.layers = nn.ModuleList(eqlinlayers) # crucial in order to register every layer in the list properly
 
     def forward(self, input):
+        if self.activation == 'relu':
+            act = nn.ReLU
+        elif self.activation == 'tanh':
+            act = nn.ReLU
+        else:
+            act = nn.Identity
         if len(input.shape) == 4:
             outs = input.clone()
             for k in range(input.shape[0]):
                 for i in range(self.n_out):
                     for j in self.n_indx:
-                        outs[k, i, j, :] = self.layers[i](input[k, i, j, :])
+                        outs[k, i, j, :] = act(self.layers[i](input[k, i, j, :]))
         elif len(input.shape) == 3:
             outs = input.clone()
             for i in range(self.n_out):
                 for j in self.n_indx:
-                    outs[i, j, :] = self.layers[i](input[i, j, :])
+                    outs[i, j, :] = act(self.layers[i](input[i, j, :]))
         else:
             raise NotImplementedError("not implemented when the input tensor is 2-dimensional")
 
