@@ -4,7 +4,14 @@ LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda-9.0/lib64/ python scripts/infer
 
 # Inversion using Projection (stylegan2-ada-pytorch code)
 
-for FILE in ../../multistyle/style_images_aligned ; do LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda-9.0/lib64/ python projector.py --outdir=../../../outputs/multistyle/inversion/stylegan2_projection/ --target=$FILE --network=../../../models/ffhq.pkl; done
+for FILE in ../../multistyle/style_images_aligned/* ; do LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda-9.0/lib64/ python projector.py --outdir=../../../outputs/multistyle/inversion/stylegan2_projection/ --target=$FILE --network=../../../models/ffhq.pkl; done
+
+# For rosinality code base
+for FILE in ../multistyle/style_images_aligned/* ; do LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda-9.0/lib64/ python projector.py --size=256 --ckpt=../../models/multistyle/ros_ffhq_256.pt $FILE; done
+
+
+for FILE in *.pt; do mv "$FILE" "$FILE_256.pt" ; done
+
 
 # Inversion using HFGI
 

@@ -8,7 +8,7 @@ import math
 import random
 import os
 import wandb
-
+import lpips
 from model_utils import *
 import numpy as np
 from torch import nn, autograd, optim
@@ -26,25 +26,22 @@ use_wandb = True
 hyperparam_defaults = dict(
     splatting = False,
     learning = True,
-    names = ['jojo.png', 'arcane_jinx.png'],#, 'jojo.png'],
-    filenamelist = ['iu.jpeg', 'chris.jpeg'],
+    names = ['arcane_jinx.png', 'jojo.png', 'sketch.png', 'jojo_yasuho.png'],
+    filenamelist = ['iu.jpeg', 'chris.jpeg', 'gal.png', 'arnold.png'],
     fake_splatting = False,
     preserve_color = False,
     per_style_iter = None,
-    num_iter = 400,
+    num_iter = 1000,
     dir_act = 'tanh',
     init = 'identity',
-    weight_type = 'ortho',
-    inv_method = 'e4e',
+    weight_type = 'std', # choose from std, ortho, diag
+    inv_method = 'opt',
     log_interval = 100,
-    learning_rate = 2e-3,
+    learning_rate = 5e-3,
     alpha = 0.7,
     n_sample = 5,  # @param {type:"number"},
     seed = 9,  # @param {type:"number"},
 )
-
-
-
 
 if use_wandb:
     wandb.init(config=hyperparam_defaults)
@@ -72,8 +69,8 @@ latent_dim = 512
 device = 'cuda'
 
 # Load original generator
-original_generator = Generator(1024, latent_dim, 8, 2).to(device)
-ckpt = torch.load('../../models/multistyle/stylegan2-ffhq-config-f.pt', map_location=lambda storage, loc: storage)
+original_generator = Generator(256, latent_dim, 8, 2).to(device)
+ckpt = torch.load('../../models/multistyle/ros_ffhq_256.pt', map_location=lambda storage, loc: storage)
 original_generator.load_state_dict(ckpt["g_ema"], strict=False)
 mean_latent = original_generator.mean_latent(10000)
 
@@ -83,7 +80,7 @@ mean_latent = original_generator.mean_latent(10000)
 
 transform = transforms.Compose(
     [
-        transforms.Resize((1024, 1024)),
+        transforms.Resize((256, 256)),
         transforms.ToTensor(),
         transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
     ]
@@ -105,9 +102,11 @@ for i, file in enumerate(config['filenamelist']):
         aligned_face = align_face(unaligned_img_path)
     aligned_facelist.append(aligned_face)
 
-    inv_code_path = os.path.join(f'../../models/multistyle/{config["inv_method"]}_inversion_codes', f'{imgname}_aligned.pt')
+    inv_code_path = os.path.join(f'../../models/multistyle/{config["inv_method"]}_inversion_codes_ros_256', f'{imgname}_aligned_256.pt')
     if os.path.exists(inv_code_path):
-        my_w = torch.load(inv_code_path)['latent']
+        w_file = torch.load(inv_code_path)
+        my_w = w_file[list(w_file.keys())[0]]['latent']
+        my_w.requires_grad = False
     else:
         testimglist.append(inv_code_path)
         if config['inv_method'] == 'e4e':
@@ -135,7 +134,7 @@ for name in config['names']:
         style_aligned = Image.open(style_aligned_path).convert('RGB')
 
     # GAN invert
-    style_code_path = os.path.join(f'../../models/multistyle/{config["inv_method"]}_inversion_codes', f'{name}.pt')
+    style_code_path = os.path.join(f'../../models/multistyle/{config["inv_method"]}_inversion_codes_ros_256', f'{name}_256.pt')
     if not os.path.exists(style_code_path):
         if config['inv_method'] == 'e4e':
             latent = e4e_projection(style_aligned, style_code_path, device)
@@ -144,7 +143,9 @@ for name in config['names']:
         else:
             raise NotImplementedError
     else:
-        latent = torch.load(style_code_path)['latent']
+        w_file = torch.load(style_code_path)
+        latent = w_file[list(w_file.keys())[0]]['latent']
+        latent.requires_grad = False
 
     targets.append(transform(style_aligned).to(device))
     latents.append(latent.to(device))
@@ -154,7 +155,7 @@ latents = torch.stack(latents, 0)
 my_ws = torch.stack(my_wlist, 0)
 
 target_im = utils.make_grid(targets, normalize=True, range=(-1, 1))
-display_image(target_im, title='Style References', save=True)
+display_image(target_im, title='Style References')
 
 with torch.no_grad():
     original_generator.eval()
@@ -174,8 +175,8 @@ with torch.no_grad():
 
 
 # load discriminator for perceptual loss
-discriminator = Discriminator(1024, 2).eval().to(device)
-ckpt = torch.load('../../models/multistyle/stylegan2-ffhq-config-f.pt', map_location=lambda storage, loc: storage)
+discriminator = Discriminator(256, 2).eval().to(device)
+ckpt = torch.load('../../models/multistyle/ros_ffhq_256.pt', map_location=lambda storage, loc: storage)
 discriminator.load_state_dict(ckpt["d"], strict=False)
 
 torch.manual_seed(config['seed'])
@@ -185,12 +186,12 @@ original_sample = original_generator([z], truncation=0.7, truncation_latent=mean
 
 generator = deepcopy(original_generator)
 del original_generator
-
+lpips_fn = lpips.LPIPS(net='vgg').to(device)
 # Which layers to swap for generating a family of plausible real images -> fake image
 if config['preserve_color']:
     id_swap = [9, 11, 15, 16, 17]
 else:
-    id_swap = list(range(7, generator.n_latent))
+    id_swap = list(range(8, generator.n_latent))
 
 if config['fake_splatting']:
     n_styles = len(config['names']) + 1
@@ -248,37 +249,40 @@ for idx in tqdm(range(config['num_iter'])):
 
     loss = sum([F.l1_loss(a, b) for a, b in zip(fake_feat, real_feat)]) / len(fake_feat)
 
+    # loss = lpips_fn(F.interpolate(img, size=(256, 256), mode='area'),
+    #                 F.interpolate(targets, size=(256, 256), mode='area')).mean()
+
     if use_wandb:
         wandb.log({"loss": loss}, step=idx)
-        # if idx == 10 or idx % config['log_interval'] == (config['log_interval']-1):
-        #     generator.eval()
-        #     if config['splatting']:
-        #         my_samples_eval = []
-        #         for i in range(len(config['names'])):
-        #             stylized_my_ws_eval = my_ws.clone()
-        #             stylized_my_ws_eval[:, id_swap,
-        #             i * (int(latent_dim / n_styles)):(i + 1) * (int(latent_dim / n_styles))] = 0.0
-        #             my_samples_eval.append(generator(stylized_my_ws_eval, input_is_latent=True))
-        #     elif config['learning']:
-        #         my_samples_eval = []
-        #         stylized_my_ws_eval = dirnet(my_ws.unsqueeze(1).repeat([1, n_styles , 1, 1])) # input and output are n_image x n_Style x 18 x 512
-        #         for i in range(len(config['names'])):
-        #             my_samples_eval.append(generator(stylized_my_ws_eval[:, i,...], input_is_latent=True))
-        #     else:
-        #         my_sample = generator(my_ws, input_is_latent=True)
-        #     generator.train()
-        #     if config['splatting'] or config['learning']:
-        #         for i in range(len(config['names'])):
-        #             my_sample = transforms.ToPILImage()(utils.make_grid(my_samples_eval[i], nrow= my_samples_eval[i].shape[0], normalize=True, range=(-1, 1)))
-        #             wandb.log(
-        #                 {"Current stylization {}".format(i): [wandb.Image(my_sample)]},
-        #                 step=idx)
-        #         del my_samples_eval, stylized_my_ws_eval, my_sample
-        #     else:
-        #         my_sample = transforms.ToPILImage()(utils.make_grid(my_sample, normalize=True, range=(-1, 1)))
-        #         wandb.log(
-        #             {"Current stylization": [wandb.Image(my_sample)]},
-        #             step=idx)
+        if idx == 10 or idx % config['log_interval'] == (config['log_interval']-1):
+            generator.eval()
+            if config['splatting']:
+                my_samples_eval = []
+                for i in range(len(config['names'])):
+                    stylized_my_ws_eval = my_ws.clone()
+                    stylized_my_ws_eval[:, id_swap,
+                    i * (int(latent_dim / n_styles)):(i + 1) * (int(latent_dim / n_styles))] = 0.0
+                    my_samples_eval.append(generator(stylized_my_ws_eval, input_is_latent=True))
+            elif config['learning']:
+                my_samples_eval = []
+                stylized_my_ws_eval = dirnet(my_ws.unsqueeze(1).repeat([1, n_styles , 1, 1])) # input and output are n_image x n_Style x 18 x 512
+                for i in range(len(config['names'])):
+                    my_samples_eval.append(generator(stylized_my_ws_eval[:, i,...], input_is_latent=True))
+            else:
+                my_sample = generator(my_ws, input_is_latent=True)
+            generator.train()
+            if config['splatting'] or config['learning']:
+                for i in range(len(config['names'])):
+                    my_sample = transforms.ToPILImage()(utils.make_grid(my_samples_eval[i], nrow= my_samples_eval[i].shape[0], normalize=True, range=(-1, 1)))
+                    wandb.log(
+                        {"Current stylization {}".format(i): [wandb.Image(my_sample)]},
+                        step=idx)
+                del my_samples_eval, stylized_my_ws_eval, my_sample
+            else:
+                my_sample = transforms.ToPILImage()(utils.make_grid(my_sample, normalize=True, range=(-1, 1)))
+                wandb.log(
+                    {"Current stylization": [wandb.Image(my_sample)]},
+                    step=idx)
 
     g_optim.zero_grad()
     loss.backward()
@@ -332,13 +336,13 @@ for aligned_face in aligned_facelist:
 faces = torch.stack(facelist, 0)
 style_images = torch.stack(style_images, 0).to(device)
 display_image(utils.make_grid(style_images, normalize=True, range=(-1, 1)), title='References',
-              save=True, use_wandb=use_wandb)
+              save=False, use_wandb=use_wandb)
 
 if config['splatting'] or config['learning']:
     for i in range(len(config['names'])):
         my_output = torch.cat([faces, my_samples[i]], 0)
         display_image(utils.make_grid(my_output, nrow= my_samples[i].shape[0],normalize=True, range=(-1, 1)), title='Test Samples'.format(i,config['num_iter'],config['alpha']),
-                      save=True, use_wandb=use_wandb)
+                      save=False, use_wandb=use_wandb)
 else:
     my_output = torch.cat([faces, my_sample], 0)
     display_image(utils.make_grid(my_output, normalize=True, range=(-1, 1)), title='My sample', use_wandb=use_wandb)
@@ -348,7 +352,9 @@ if config['splatting'] or config['learning']:
         output = torch.cat([original_sample, samples[i]], 0)
         display_image(utils.make_grid(output, normalize=True, range=(-1, 1), nrow=config['n_sample']),
                       title='Random samples'.format(i,config['num_iter'],config['alpha']),
-                      save=True, use_wandb=use_wandb)
+                      save=False, use_wandb=use_wandb)
 else:
     output = torch.cat([original_sample, sample], 0)
     display_image(utils.make_grid(output, normalize=True, range=(-1, 1), nrow=config['n_sample']), title='Random samples',use_wandb=use_wandb)
+
+print("Done!")
