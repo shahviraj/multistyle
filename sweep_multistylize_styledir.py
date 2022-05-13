@@ -26,7 +26,7 @@ use_wandb = False
 hyperparam_defaults = dict(
     splatting = False,
     learning = True,
-    names = ['botero.jpg', 'modig1.jpg'],#, 'jojo.png'],
+    names = ['jojo.png', 'arcane_jinx.png'],#, 'jojo.png'],
     filenamelist = ['iu.jpeg'],
     fake_splatting = False,
     preserve_color = False,
@@ -34,7 +34,7 @@ hyperparam_defaults = dict(
     num_iter = 500,
     dir_act = 'tanh',
     init = 'identity',
-    weight_type = 'sep',
+    weight_type = 'styledir', # dont change
     inv_method = 'e4e',
     log_interval = 100,
     learning_rate = 2e-3,
@@ -72,6 +72,7 @@ device = 'cuda'
 original_generator = Generator(1024, latent_dim, 8, 2).to(device)
 ckpt = torch.load('../../models/multistyle/stylegan2-ffhq-config-f.pt', map_location=lambda storage, loc: storage)
 original_generator.load_state_dict(ckpt["g_ema"], strict=False)
+original_generator = modify_generator(original_generator, n_styles=len(config['names']))
 mean_latent = original_generator.mean_latent(10000)
 
 # to be finetuned generator
@@ -183,6 +184,7 @@ original_sample = original_generator([z], truncation=0.7, truncation_latent=mean
 generator = deepcopy(original_generator)
 del original_generator
 
+
 # Which layers to swap for generating a family of plausible real images -> fake image
 if config['preserve_color']:
     id_swap = [9, 11, 15, 16, 17]
@@ -194,27 +196,9 @@ if config['fake_splatting']:
 else:
     n_styles = len(config['names'])
 
-if config['weight_type'] == 'diag':
-    dirnet = DirNetDiag(latent_dim, latent_dim, n_styles, id_swap, init=config['init'], activation=config['dir_act'],
-                    device=device).to(device)
-elif config['weight_type'] == 'ortho':
-    dirnet = DirNetOrtho(latent_dim, latent_dim, n_styles, id_swap, init=config['init'], activation=config['dir_act'],
-                        device=device).to(device)
-elif config['weight_type'] == 'std':
-    dirnet = DirNet(latent_dim, latent_dim, n_styles, id_swap, init=config['init'], activation=config['dir_act'], device=device).to(device)
-elif config['weight_type'] == 'sep': # separate Transformation applied for every row for each style (total Tx = n_rows to be modified x n_styles)
-    dirnet = DirNetSep(latent_dim, latent_dim, n_styles, id_swap, init=config['init'], activation=config['dir_act'], device=device).to(device)
-elif config['weight_type'] == 'mod':
-    dirnet = DirNetMod(latent_dim, latent_dim, n_styles, id_swap, init=config['init'], activation=config['dir_act'], device=device).to(device)
-elif config['weight_type'] == 'ortho_single':
-    dirnet = DirNetSingleOrtho(latent_dim, latent_dim, n_styles, id_swap, init=config['init'], activation=config['dir_act'],
-                    device=device).to(device)
-else:
-    raise NotImplementedError
-if config['learning']:
-    g_optim = optim.Adam(list(generator.parameters()) + list(dirnet.parameters()), lr=config['learning_rate'], betas=(0, 0.99))
-else:
-    g_optim = optim.Adam(generator.parameters(), lr=config['learning_rate'], betas=(0, 0.99))
+
+
+g_optim = optim.Adam(generator.parameters(), lr=config['learning_rate'], betas=(0, 0.99))
 
 if use_wandb:
     wandb.log(
@@ -228,15 +212,12 @@ for idx in tqdm(range(config['num_iter'])):
     in_latent = latents.clone()
     in_latent[:, id_swap] = config['alpha'] * latents[:, id_swap] + (1 - config['alpha']) * mean_w[:, id_swap]
 
-    if config['splatting']:
-        if config['fake_splatting']:
-            in_latent = perform_splat_only_on_one(in_latent, id_swap)
-        else:
-            in_latent = perform_splat(in_latent, id_swap)
-    elif config['learning']:
-            in_latent = dirnet(in_latent)
-
-    img = generator(in_latent, input_is_latent=True)
+    #in_latent = dirnet(in_latent)
+    img = []
+    for i in range(len(in_latent)):
+        img.append(generator(in_latent[i].unsqueeze(0), style_indx= i+1 , input_is_latent=True))
+    img = torch.vstack(img)
+    #img = generator(in_latent, input_is_latent=True)
 
     # k will determine which style image will be used to calculate loss, k varies from 0 to n_styles-1
     if config['per_style_iter'] is not None:
@@ -292,36 +273,27 @@ for idx in tqdm(range(config['num_iter'])):
 
 with torch.no_grad():
     generator.eval()
+    my_samples = []
+    stylized_my_w = my_ws.unsqueeze(1).repeat([1, n_styles, 1, 1])
+    for i in range(len(config['names'])):
+        my_samples.append(generator(stylized_my_w[:, i, ...], style_indx=i + 1, input_is_latent=True))
+    facelist = []
+    for aligned_face in aligned_facelist:
+        facelist.append(transform(aligned_face).to(device))
+    faces = torch.stack(facelist, 0)
+    for i in range(len(config['names'])):
+        my_output = torch.cat([faces, my_samples[i]], 0)
+        display_image(utils.make_grid(my_output, nrow= my_samples[i].shape[0],normalize=True, range=(-1, 1)), title='Test Samples'.format(i,config['num_iter'],config['alpha']),
+                      save=False, use_wandb=use_wandb)
 
-    if config['splatting']:
-        w = generator.get_latent(z).unsqueeze(1).repeat(1,generator.n_latent,1)
-        samples = []
-        for i in range(len(config['names'])):
-            stylized_w = w.clone()
-            stylized_w[:,id_swap, i*(int(latent_dim/n_styles)):(i+1)*(int(latent_dim/n_styles))] = 0.0
-            samples.append(generator(stylized_w, input_is_latent=True))
-    elif config['learning']:
-        w = generator.get_latent(z).unsqueeze(1).unsqueeze(1).repeat(1, n_styles, generator.n_latent, 1) # output becomes n_images x n_styles x 18 x 512
-        stylized_w = dirnet(w)  # output becomes n_images x n_styles x 18 x 512 -- but contains stylized directions
-        samples = []
-        for i in range(n_styles):
-            samples.append(generator(stylized_w[:, i,...], input_is_latent=True))
-    else:
-        sample = generator([z], truncation=0.7, truncation_latent=mean_latent)
+    w = generator.get_latent(z).unsqueeze(1).unsqueeze(1).repeat(1, n_styles, generator.n_latent, 1) # output becomes n_images x n_styles x 18 x 512
 
-    if config['splatting']:
-        my_samples = []
-        for i in range(len(config['names'])):
-            stylized_my_w = my_ws.clone()
-            stylized_my_w[:,id_swap, i*(int(latent_dim/n_styles)):(i+1)*(int(latent_dim/n_styles))] = 0.0
-            my_samples.append(generator(stylized_my_w, input_is_latent=True))
-    elif config['learning']:
-        my_samples = []
-        stylized_my_w = dirnet(my_ws.unsqueeze(1).repeat([1, n_styles , 1, 1]))
-        for i in range(len(config['names'])):
-            my_samples.append(generator(stylized_my_w[:, i,...], input_is_latent=True))
-    else:
-        my_sample = generator(my_ws, input_is_latent=True)
+    samples = []
+    for i in range(n_styles):
+        samples.append(generator(w[:, i,...], style_indx = i+1, input_is_latent=True))
+
+
+
 
 # display reference images
 style_images = []
@@ -342,19 +314,13 @@ if config['splatting'] or config['learning']:
     for i in range(len(config['names'])):
         my_output = torch.cat([faces, my_samples[i]], 0)
         display_image(utils.make_grid(my_output, nrow= my_samples[i].shape[0],normalize=True, range=(-1, 1)), title='Test Samples'.format(i,config['num_iter'],config['alpha']),
-                      save=True, use_wandb=use_wandb)
-else:
-    my_output = torch.cat([faces, my_sample], 0)
-    display_image(utils.make_grid(my_output, normalize=True, range=(-1, 1)), title='My sample', use_wandb=use_wandb)
+                      save=False, use_wandb=use_wandb)
 
 if config['splatting'] or config['learning']:
     for i in range(len(config['names'])):
         output = torch.cat([original_sample, samples[i]], 0)
         display_image(utils.make_grid(output, normalize=True, range=(-1, 1), nrow=config['n_sample']),
                       title='Random samples'.format(i,config['num_iter'],config['alpha']),
-                      save=True, use_wandb=use_wandb)
-else:
-    output = torch.cat([original_sample, sample], 0)
-    display_image(utils.make_grid(output, normalize=True, range=(-1, 1), nrow=config['n_sample']), title='Random samples',use_wandb=use_wandb)
+                      save=False, use_wandb=use_wandb)
 
 print("Done!")

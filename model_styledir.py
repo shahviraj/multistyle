@@ -320,12 +320,12 @@ class ModulatedConv2d(nn.Module):
             f"upsample={self.upsample}, downsample={self.downsample})"
         )
 
-    def forward(self, input, style):
+    def forward(self, input, style, style_indx):
         batch, in_channel, height, width = input.shape
 
         if not self.fused:
             weight = self.scale * self.weight.squeeze(0)
-            style = self.modulation(style)
+            style = self.modulation[style_indx](style)
 
             if self.demodulate:
                 w = weight.unsqueeze(0) * style.view(batch, 1, in_channel, 1, 1)
@@ -355,7 +355,7 @@ class ModulatedConv2d(nn.Module):
         # focus on this operation to implement the ATransformation
         #changing the following line just for a try for ATransform
         #style = style[:, :in_channel].view(batch, 1, in_channel, 1, 1)
-        style = self.modulation(style).view(batch, 1, in_channel, 1, 1)
+        style = self.modulation[style_indx](style).view(batch, 1, in_channel, 1, 1)
         weight = self.scale * self.weight * style
 
         if self.demodulate:
@@ -457,8 +457,8 @@ class StyledConv(nn.Module):
         # self.activate = ScaledLeakyReLU(0.2)
         self.activate = FusedLeakyReLU(out_channel)
 
-    def forward(self, input, style, noise=None):
-        out = self.conv(input, style)
+    def forward(self, input, style, style_indx, noise=None):
+        out = self.conv(input, style, style_indx)
         out = self.noise(out, noise=noise)
         # out = out + self.bias
         out = self.activate(out)
@@ -476,8 +476,8 @@ class ToRGB(nn.Module):
         self.conv = ModulatedConv2d(in_channel, 3, 1, style_dim, demodulate=False)
         self.bias = nn.Parameter(torch.zeros(1, 3, 1, 1))
 
-    def forward(self, input, style, skip=None):
-        out = self.conv(input, style)
+    def forward(self, input, style, style_indx, skip=None):
+        out = self.conv(input, style, style_indx)
         out = out + self.bias
 
         if skip is not None:
@@ -601,6 +601,7 @@ class Generator(nn.Module):
     def forward(
         self,
         styles,
+        style_indx=0,
         return_latents=False,
         inject_index=None,
         truncation=1,
@@ -635,17 +636,17 @@ class Generator(nn.Module):
             latent = styles
 
         out = self.input(latent)
-        out = self.conv1(out, latent[:, 0], noise=noise[0])
+        out = self.conv1(out, latent[:, 0], style_indx, noise=noise[0])
 
-        skip = self.to_rgb1(out, latent[:, 1])
+        skip = self.to_rgb1(out, latent[:, 1], style_indx)
 
         i = 1
         for conv1, conv2, noise1, noise2, to_rgb in zip(
             self.convs[::2], self.convs[1::2], noise[1::2], noise[2::2], self.to_rgbs
         ):
-            out = conv1(out, latent[:, i], noise=noise1)
-            out = conv2(out, latent[:, i + 1], noise=noise2)
-            skip = to_rgb(out, latent[:, i + 2], skip)
+            out = conv1(out, latent[:, i], style_indx, noise=noise1)
+            out = conv2(out, latent[:, i + 1], style_indx, noise=noise2)
+            skip = to_rgb(out, latent[:, i + 2], style_indx, skip)
 
             i += 2
 
