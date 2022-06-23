@@ -1,6 +1,6 @@
 from model import *
 import scipy
-
+import copy
 
 def perform_splat(latent, id_swap):
     n_styles = latent.shape[0]
@@ -239,13 +239,54 @@ class DirNetSingleOrtho(nn.Module):
 
         return outs
 
-def modify_generator(generator, n_styles):
-    generator.conv1.conv.modulation = nn.ModuleList([generator.conv1.conv.modulation]*(n_styles+1))
-    generator.to_rgb1.conv.modulation = nn.ModuleList([generator.to_rgb1.conv.modulation] * (n_styles + 1))
+def modify_generator_old(generator, n_styles):
+    generator.conv1.conv.modulation = nn.ModuleList([copy.deepcopy(generator.conv1.conv.modulation)]*(n_styles+1))
+    generator.to_rgb1.conv.modulation = nn.ModuleList([copy.deepcopy(generator.to_rgb1.conv.modulation)] * (n_styles + 1))
 
     for l in generator.convs:
-        l.conv.modulation = nn.ModuleList([l.conv.modulation] * (n_styles + 1))
+        l.conv.modulation = nn.ModuleList([copy.deepcopy(l.conv.modulation)] * (n_styles + 1))
     for l in generator.to_rgbs:
-        l.conv.modulation = nn.ModuleList([l.conv.modulation]*(n_styles+1))
+        l.conv.modulation = nn.ModuleList([copy.deepcopy(l.conv.modulation)]*(n_styles+1))
 
     return generator
+
+def modify_generator(generator, n_styles):
+    state_dict = generator.state_dict()
+    for i in range(n_styles+1):
+        generator.conv1.conv.stylemodulation[i].weight = torch.nn.Parameter(state_dict['conv1.conv.modulation.weight'].detach().clone())
+        generator.to_rgb1.conv.stylemodulation[i].weight = torch.nn.Parameter(state_dict['to_rgb1.conv.modulation.weight'].detach().clone())
+        generator.conv1.conv.stylemodulation[i].bias = torch.nn.Parameter(state_dict['conv1.conv.modulation.bias'].detach().clone())
+        generator.to_rgb1.conv.stylemodulation[i].bias = torch.nn.Parameter(state_dict['to_rgb1.conv.modulation.bias'].detach().clone())
+
+    for i, l in enumerate(generator.convs):
+        for j in range(n_styles+1):
+            l.conv.stylemodulation[j].weight = torch.nn.Parameter(state_dict['convs.{}.conv.modulation.weight'.format(i)].detach().clone())
+            l.conv.stylemodulation[j].bias = torch.nn.Parameter(state_dict['convs.{}.conv.modulation.bias'.format(i)].detach().clone())
+    for i,l in enumerate(generator.to_rgbs):
+        for j in range(3):
+            l.conv.stylemodulation[j].weight = torch.nn.Parameter(state_dict['to_rgbs.{}.conv.modulation.weight'.format(i)].detach().clone())
+            l.conv.stylemodulation[j].bias = torch.nn.Parameter(state_dict['to_rgbs.{}.conv.modulation.bias'.format(i)].detach().clone())
+
+    return generator
+
+def modify_state_dict(generator, ckpt, n_styles):
+
+    for i in range(n_styles+1):
+        ckpt['g_ema'][f'conv1.conv.stylemodulation.{i}.weight'] = ckpt['g_ema']['conv1.conv.modulation.weight'].data
+        ckpt['g_ema'][f'conv1.conv.stylemodulation.{i}.bias'] =  ckpt['g_ema']['conv1.conv.modulation.bias'].data
+        ckpt['g_ema'][f'to_rgb1.conv.stylemodulation.{i}.weight'] =  ckpt['g_ema']['to_rgb1.conv.modulation.weight'].data
+        ckpt['g_ema'][f'to_rgb1.conv.stylemodulation.{i}.bias'] = ckpt['g_ema']['to_rgb1.conv.modulation.bias'].data
+
+    for i, l in enumerate(generator.convs):
+        for j in range(n_styles+1):
+            ckpt['g_ema'][f'convs.{i}.conv.stylemodulation.{j}.weight']=  ckpt['g_ema'][f'convs.{i}.conv.modulation.weight'].data
+            ckpt['g_ema'][f'convs.{i}.conv.stylemodulation.{j}.bias'] = ckpt['g_ema'][
+                f'convs.{i}.conv.modulation.bias'].data
+    for i,l in enumerate(generator.to_rgbs):
+        for j in range(3):
+            ckpt['g_ema'][f'to_rgbs.{i}.conv.stylemodulation.{j}.weight'] = ckpt['g_ema'][
+                f'to_rgbs.{i}.conv.modulation.weight'].data
+            ckpt['g_ema'][f'to_rgbs.{i}.conv.stylemodulation.{j}.bias'] = ckpt['g_ema'][
+                f'to_rgbs.{i}.conv.modulation.bias'].data
+
+    return ckpt

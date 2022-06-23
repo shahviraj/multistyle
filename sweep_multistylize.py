@@ -15,18 +15,18 @@ from torch import nn, autograd, optim
 from torch.nn import functional as F
 from tqdm import tqdm
 #import wandb
-from model_styledir import *
+from model import *
 
 from e4e_projection import projection as e4e_projection
 from restyle_projection import restyle_projection
 from copy import deepcopy
 
-use_wandb = False
+use_wandb = True
 
 hyperparam_defaults = dict(
     splatting = False,
     learning = True,
-    names = ['botero.jpg', 'modig1.jpg'],#, 'jojo.png'],
+    names = ['arcane_caitlyn.png', 'art.png'],#, 'jojo.png'],
     filenamelist = ['iu.jpeg'],
     fake_splatting = False,
     preserve_color = False,
@@ -34,7 +34,7 @@ hyperparam_defaults = dict(
     num_iter = 500,
     dir_act = 'tanh',
     init = 'identity',
-    weight_type = 'sep',
+    weight_type = 'std',
     inv_method = 'e4e',
     log_interval = 100,
     learning_rate = 2e-3,
@@ -151,7 +151,7 @@ latents = torch.stack(latents, 0)
 my_ws = torch.stack(my_wlist, 0)
 
 target_im = utils.make_grid(targets, normalize=True, range=(-1, 1))
-display_image(target_im, title='Style References', save=False)
+display_image(target_im, title='Style References', save=True)
 
 with torch.no_grad():
     original_generator.eval()
@@ -187,7 +187,7 @@ del original_generator
 if config['preserve_color']:
     id_swap = [9, 11, 15, 16, 17]
 else:
-    id_swap = list(range(3, generator.n_latent))
+    id_swap = list(range(7, generator.n_latent))
 
 if config['fake_splatting']:
     n_styles = len(config['names']) + 1

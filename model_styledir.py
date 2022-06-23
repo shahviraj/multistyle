@@ -310,7 +310,10 @@ class ModulatedConv2d(nn.Module):
         )
 
         self.modulation = EqualLinear(style_dim, in_channel, bias_init=1)
-
+        stylemodulation = []
+        for i in range(3):
+            stylemodulation.append(EqualLinear(style_dim, in_channel, bias_init=1)) # hardcoded for now
+        self.stylemodulation = nn.ModuleList(stylemodulation)
         self.demodulate = demodulate
         self.fused = fused
 
@@ -325,7 +328,7 @@ class ModulatedConv2d(nn.Module):
 
         if not self.fused:
             weight = self.scale * self.weight.squeeze(0)
-            style = self.modulation[style_indx](style)
+            style = self.stylemodulation[style_indx](style)
 
             if self.demodulate:
                 w = weight.unsqueeze(0) * style.view(batch, 1, in_channel, 1, 1)
@@ -355,7 +358,7 @@ class ModulatedConv2d(nn.Module):
         # focus on this operation to implement the ATransformation
         #changing the following line just for a try for ATransform
         #style = style[:, :in_channel].view(batch, 1, in_channel, 1, 1)
-        style = self.modulation[style_indx](style).view(batch, 1, in_channel, 1, 1)
+        style = self.stylemodulation[style_indx](style).view(batch, 1, in_channel, 1, 1)
         weight = self.scale * self.weight * style
 
         if self.demodulate:

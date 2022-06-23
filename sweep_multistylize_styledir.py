@@ -21,13 +21,13 @@ from e4e_projection import projection as e4e_projection
 from restyle_projection import restyle_projection
 from copy import deepcopy
 
-use_wandb = False
+use_wandb = True
 
 hyperparam_defaults = dict(
     splatting = False,
     learning = True,
-    names = ['jojo.png', 'arcane_jinx.png'],#, 'jojo.png'],
-    filenamelist = ['iu.jpeg'],
+    names = ['arcane_caitlyn.png', 'art.png'],#, 'jojo.png'],
+    filenamelist = ['iu.jpeg', 'chris.jpeg'],
     fake_splatting = False,
     preserve_color = False,
     per_style_iter = None,
@@ -71,8 +71,9 @@ device = 'cuda'
 # Load original generator
 original_generator = Generator(1024, latent_dim, 8, 2).to(device)
 ckpt = torch.load('../../models/multistyle/stylegan2-ffhq-config-f.pt', map_location=lambda storage, loc: storage)
-original_generator.load_state_dict(ckpt["g_ema"], strict=False)
-original_generator = modify_generator(original_generator, n_styles=len(config['names']))
+ckpt = modify_state_dict(original_generator, ckpt, n_styles=len(config['names']))
+original_generator.load_state_dict(ckpt["g_ema"], strict=True)
+#original_generator = modify_generator(original_generator,  n_styles=len(config['names']))
 mean_latent = original_generator.mean_latent(10000)
 
 # to be finetuned generator
@@ -189,7 +190,7 @@ del original_generator
 if config['preserve_color']:
     id_swap = [9, 11, 15, 16, 17]
 else:
-    id_swap = list(range(3, generator.n_latent))
+    id_swap = list(range(7, generator.n_latent))
 
 if config['fake_splatting']:
     n_styles = len(config['names']) + 1
@@ -302,19 +303,10 @@ for name in config['names']:
     style_image = transform(Image.open(style_path))
     style_images.append(style_image)
 
-facelist = []
-for aligned_face in aligned_facelist:
-    facelist.append(transform(aligned_face).to(device))
-faces = torch.stack(facelist, 0)
 style_images = torch.stack(style_images, 0).to(device)
 display_image(utils.make_grid(style_images, normalize=True, range=(-1, 1)), title='References',
               save=True, use_wandb=use_wandb)
 
-if config['splatting'] or config['learning']:
-    for i in range(len(config['names'])):
-        my_output = torch.cat([faces, my_samples[i]], 0)
-        display_image(utils.make_grid(my_output, nrow= my_samples[i].shape[0],normalize=True, range=(-1, 1)), title='Test Samples'.format(i,config['num_iter'],config['alpha']),
-                      save=False, use_wandb=use_wandb)
 
 if config['splatting'] or config['learning']:
     for i in range(len(config['names'])):
