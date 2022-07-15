@@ -167,7 +167,7 @@ def predict(
 
     return out_path
 
-input_face = # load input_face image
+input_face =  # load input_face image
 pretrained = # load pretrained model -- options
         ''' options=[
             "art",

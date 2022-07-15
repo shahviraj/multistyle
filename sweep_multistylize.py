@@ -21,17 +21,39 @@ from e4e_projection import projection as e4e_projection
 from restyle_projection import restyle_projection
 from copy import deepcopy
 
-use_wandb = True
+use_wandb = False
 
 hyperparam_defaults = dict(
     splatting = False,
-    learning = True,
-    names = ['arcane_caitlyn.png', 'art.png'],#, 'jojo.png'],
+    learning = False,
+    names = [
+            #'arcane_caitlyn.png',
+            #'art.png',
+            'arcane_jinx.png',
+            #'jojo.png',
+            #'jojo_yasuho.png',
+            #'sketch.png',
+            #'arcane_viktor.png',
+            #'jojo_yasuho.png',
+            #'sketch.png',
+            #'arcane_jayce.png',
+            #'arcane_caitlyn.png',
+            #'titan.jpeg',
+            #'audrey.jpg',
+            #'arcane_texture.jpeg',
+            #'cheryl.jpg',
+            #'flower.jpeg',
+            #'elliee.jpeg',
+            #'yukako.jpeg',
+            #'marilyn.jpg',
+            #'water.jpeg',
+            #'matisse.jpeg',
+             ],#, 'jojo.png'],
     filenamelist = ['iu.jpeg'],
     fake_splatting = False,
     preserve_color = False,
     per_style_iter = None,
-    num_iter = 500,
+    num_iter = 200,
     dir_act = 'tanh',
     init = 'identity',
     weight_type = 'std',
@@ -124,8 +146,13 @@ for name in config['names']:
     style_aligned_path = os.path.join('style_images_aligned', f'{name}.png')
 
     if not os.path.exists(style_aligned_path):
-        style_path = os.path.join('style_images', name+ '.jpg')
-        assert os.path.exists(style_path), f"{style_path} does not exist!"
+        try:
+            style_path = os.path.join('style_images', name+ '.jpg')
+            assert os.path.exists(style_path), f"{style_path} does not exist!"
+        except:
+            style_path = os.path.join('style_images', name + '.jpeg')
+            assert os.path.exists(style_path), f"{style_path} does not exist!"
+
         style_aligned = align_face(style_path)
         style_aligned.save(style_aligned_path)
     else:
@@ -161,8 +188,10 @@ with torch.no_grad():
                   save=False, use_wandb=use_wandb)
     display_image(utils.make_grid(inv_tests, normalize=True, range=(-1, 1)), title='Input Inversions',
                   save=False, use_wandb=use_wandb)
-    del inv_styles
-    del inv_tests
+    inv_styles = inv_styles.detach()
+    inv_tests = inv_tests.detach()
+    del inv_styles, inv_tests
+    torch.cuda.empty_cache()
     original_generator.train()
 # @param {type:"slider", min:0, max:1, step:0.1}
 #alpha = 1 - alpha
@@ -181,7 +210,10 @@ original_sample = original_generator([z], truncation=0.7, truncation_latent=mean
 #original_my_sample = original_generator(my_w, input_is_latent=True)
 
 generator = deepcopy(original_generator)
+original_generator.cpu()
 del original_generator
+torch.cuda.empty_cache()
+
 
 # Which layers to swap for generating a family of plausible real images -> fake image
 if config['preserve_color']:
@@ -358,3 +390,15 @@ else:
     display_image(utils.make_grid(output, normalize=True, range=(-1, 1), nrow=config['n_sample']), title='Random samples',use_wandb=use_wandb)
 
 print("Done!")
+
+# interpolate between two styles
+with torch.no_grad():
+    my_samples = []
+    for i in range(10):
+        blended_w = (0.1)*i*stylized_my_w[:,0,:,:] + (1.0 - 0.1*i)*stylized_my_w[:,1,:,:]
+        my_samples.append(generator(blended_w, input_is_latent=True))
+
+    my_samples = torch.cat(my_samples,0)
+
+    display_image(utils.make_grid(my_samples, nrow= 2,normalize=True, range=(-1, 1)), title='Blended samples',
+                  save=False, use_wandb=use_wandb)

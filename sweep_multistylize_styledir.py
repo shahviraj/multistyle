@@ -21,7 +21,7 @@ from e4e_projection import projection as e4e_projection
 from restyle_projection import restyle_projection
 from copy import deepcopy
 
-use_wandb = True
+use_wandb = False
 
 hyperparam_defaults = dict(
     splatting = False,
@@ -31,7 +31,7 @@ hyperparam_defaults = dict(
     fake_splatting = False,
     preserve_color = False,
     per_style_iter = None,
-    num_iter = 500,
+    num_iter = 1000,
     dir_act = 'tanh',
     init = 'identity',
     weight_type = 'styledir', # dont change
@@ -69,12 +69,13 @@ latent_dim = 512
 device = 'cuda'
 
 # Load original generator
-original_generator = Generator(1024, latent_dim, 8, 2).to(device)
-ckpt = torch.load('../../models/multistyle/stylegan2-ffhq-config-f.pt', map_location=lambda storage, loc: storage)
-ckpt = modify_state_dict(original_generator, ckpt, n_styles=len(config['names']))
-original_generator.load_state_dict(ckpt["g_ema"], strict=True)
-#original_generator = modify_generator(original_generator,  n_styles=len(config['names']))
-mean_latent = original_generator.mean_latent(10000)
+with torch.no_grad():
+    original_generator = Generator(1024, latent_dim, 8, 2).to(device)
+    ckpt = torch.load('../../models/multistyle/stylegan2-ffhq-config-f.pt', map_location=lambda storage, loc: storage)
+    ckpt = modify_state_dict_old(original_generator, ckpt, n_styles=len(config['names']))
+    original_generator.load_state_dict(ckpt["g_ema"], strict=True)
+    #original_generator = modify_generator(original_generator,  n_styles=len(config['names']))
+    mean_latent = original_generator.mean_latent(10000)
 
 # to be finetuned generator
 # generator = deepcopy(original_generator)
@@ -163,9 +164,12 @@ with torch.no_grad():
                   save=False, use_wandb=use_wandb)
     display_image(utils.make_grid(inv_tests, normalize=True, range=(-1, 1)), title='Input Inversions',
                   save=False, use_wandb=use_wandb)
-    del inv_styles
-    del inv_tests
+    inv_styles = inv_styles.detach()
+    inv_tests = inv_tests.detach()
+    del inv_styles, inv_tests
+    torch.cuda.empty_cache()
     original_generator.train()
+
 # @param {type:"slider", min:0, max:1, step:0.1}
 #alpha = 1 - alpha
 
@@ -183,8 +187,9 @@ original_sample = original_generator([z], truncation=0.7, truncation_latent=mean
 #original_my_sample = original_generator(my_w, input_is_latent=True)
 
 generator = deepcopy(original_generator)
+original_generator.cpu()
 del original_generator
-
+torch.cuda.empty_cache()
 
 # Which layers to swap for generating a family of plausible real images -> fake image
 if config['preserve_color']:

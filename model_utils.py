@@ -272,6 +272,46 @@ def modify_generator(generator, n_styles):
 def modify_state_dict(generator, ckpt, n_styles):
 
     for i in range(n_styles+1):
+        if i == 0:
+            ckpt['g_ema'][f'conv1.conv.stylemodulation.{i}.weight'] = ckpt['g_ema']['conv1.conv.modulation.weight'].data
+            ckpt['g_ema'][f'conv1.conv.stylemodulation.{i}.bias'] =  ckpt['g_ema']['conv1.conv.modulation.bias'].data
+            ckpt['g_ema'][f'to_rgb1.conv.stylemodulation.{i}.weight'] =  ckpt['g_ema']['to_rgb1.conv.modulation.weight'].data
+            ckpt['g_ema'][f'to_rgb1.conv.stylemodulation.{i}.bias'] = ckpt['g_ema']['to_rgb1.conv.modulation.bias'].data
+        else:
+            ckpt['g_ema'][f'conv1.conv.stylemodulation.{i}.weight'] = torch.randn_like(ckpt['g_ema']['conv1.conv.modulation.weight'].data)
+            ckpt['g_ema'][f'conv1.conv.stylemodulation.{i}.bias'] =  torch.zeros_like(ckpt['g_ema']['conv1.conv.modulation.bias'].data)
+            ckpt['g_ema'][f'to_rgb1.conv.stylemodulation.{i}.weight'] =  torch.randn_like(ckpt['g_ema']['to_rgb1.conv.modulation.weight'].data)
+            ckpt['g_ema'][f'to_rgb1.conv.stylemodulation.{i}.bias'] =  torch.zeros_like(ckpt['g_ema']['to_rgb1.conv.modulation.bias'].data)
+
+    for i, l in enumerate(generator.convs):
+        for j in range(n_styles+1):
+            if j == 0:
+                ckpt['g_ema'][f'convs.{i}.conv.stylemodulation.{j}.weight']=  ckpt['g_ema'][f'convs.{i}.conv.modulation.weight'].data
+                ckpt['g_ema'][f'convs.{i}.conv.stylemodulation.{j}.bias'] = ckpt['g_ema'][
+                    f'convs.{i}.conv.modulation.bias'].data
+            else:
+                ckpt['g_ema'][f'convs.{i}.conv.stylemodulation.{j}.weight'] = torch.randn_like(ckpt['g_ema'][
+                    f'convs.{i}.conv.modulation.weight'].data)
+                ckpt['g_ema'][f'convs.{i}.conv.stylemodulation.{j}.bias'] = torch.zeros_like(ckpt['g_ema'][
+                    f'convs.{i}.conv.modulation.bias'].data)
+
+    for i,l in enumerate(generator.to_rgbs):
+        for j in range(n_styles+1):
+            if j == 0:
+                ckpt['g_ema'][f'to_rgbs.{i}.conv.stylemodulation.{j}.weight'] = ckpt['g_ema'][
+                    f'to_rgbs.{i}.conv.modulation.weight'].data
+                ckpt['g_ema'][f'to_rgbs.{i}.conv.stylemodulation.{j}.bias'] = ckpt['g_ema'][
+                    f'to_rgbs.{i}.conv.modulation.bias'].data
+            else:
+                ckpt['g_ema'][f'to_rgbs.{i}.conv.stylemodulation.{j}.weight'] = torch.randn_like(ckpt['g_ema'][
+                    f'to_rgbs.{i}.conv.modulation.weight'].data)
+                ckpt['g_ema'][f'to_rgbs.{i}.conv.stylemodulation.{j}.bias'] = torch.zeros_like(ckpt['g_ema'][
+                    f'to_rgbs.{i}.conv.modulation.bias'].data)
+    return ckpt
+
+def modify_state_dict_old(generator, ckpt, n_styles):
+
+    for i in range(n_styles+1):
         ckpt['g_ema'][f'conv1.conv.stylemodulation.{i}.weight'] = ckpt['g_ema']['conv1.conv.modulation.weight'].data
         ckpt['g_ema'][f'conv1.conv.stylemodulation.{i}.bias'] =  ckpt['g_ema']['conv1.conv.modulation.bias'].data
         ckpt['g_ema'][f'to_rgb1.conv.stylemodulation.{i}.weight'] =  ckpt['g_ema']['to_rgb1.conv.modulation.weight'].data
