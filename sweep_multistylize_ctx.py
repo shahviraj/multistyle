@@ -21,18 +21,21 @@ from e4e_projection import projection as e4e_projection
 from restyle_projection import restyle_projection
 from copy import deepcopy
 
+#from id_loss import IDLoss
+
 use_wandb = True
-run_name = 'multistyle_baseline'
-run_desc = 'baseline with std dirnet, no modifications'
+run_name = 'jojogan_with_dirnet_jinx'
+run_desc = 'baseline jojogan with MLP dirnet, no modifications'
 
 
 hyperparam_defaults = dict(
     learning = True,
+ #   id_loss = False,
     names = [
             #'arcane_caitlyn.png',
             #'art.png',
             'arcane_jinx.png',
-            'jojo.png',
+            #'jojo.png',
             #'jojo_yasuho.png',
             #'sketch.png',
             #'arcane_viktor.png',
@@ -184,6 +187,9 @@ discriminator = Discriminator(1024, 2).eval().to(device)
 ckpt = torch.load('../../models/multistyle/stylegan2-ffhq-config-f.pt', map_location=lambda storage, loc: storage)
 discriminator.load_state_dict(ckpt["d"], strict=False)
 
+for p in discriminator.parameters():
+    p.requires_grad = False
+
 torch.manual_seed(config['seed'])
 z = torch.randn(config['n_sample'], latent_dim, device=device)
 original_sample = original_generator([z], truncation=0.7, truncation_latent=mean_latent)
@@ -209,7 +215,9 @@ if n_styles > 1:
     else:
         raise NotImplementedError
 else:
-    dirnet = DirNet_Id()
+    #dirnet = DirNet_Id().to(device)
+    dirnet = DirNet(latent_dim, latent_dim, n_styles, id_swap, init=config['init'], activation=config['dir_act'],
+                    device=device).to(device)
 
 
 
