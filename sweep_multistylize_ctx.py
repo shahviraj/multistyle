@@ -21,21 +21,23 @@ from e4e_projection import projection as e4e_projection
 from restyle_projection import restyle_projection
 from copy import deepcopy
 
-#from id_loss import IDLoss
+from id_loss import IDLoss
 
 use_wandb = True
-run_name = 'jojogan_with_dirnet_jinx'
-run_desc = 'baseline jojogan with MLP dirnet, no modifications'
+run_name = 'multistyle_with_mse_l1_loss'
+run_desc = 'baseline multistyle + l1 loss is replaced with MSE loss + new l1 loss b/w images and targets are added'
 
 
 hyperparam_defaults = dict(
     learning = True,
- #   id_loss = False,
+    mse_loss = False,
+    l1_loss = False,
+    id_loss = False,
     names = [
             #'arcane_caitlyn.png',
             #'art.png',
             'arcane_jinx.png',
-            #'jojo.png',
+            'jojo.png',
             #'jojo_yasuho.png',
             #'sketch.png',
             #'arcane_viktor.png',
@@ -252,7 +254,14 @@ for idx in tqdm(range(config['num_iter'])):
             real_feat = discriminator(targets)
         fake_feat = discriminator(img)
 
-    loss = sum([F.l1_loss(a, b) for a, b in zip(fake_feat, real_feat)]) / len(fake_feat)
+    if config['mse_loss']:
+        loss = sum([F.mse_loss(a, b) for a, b in zip(fake_feat, real_feat)]) / len(fake_feat)
+
+    else:
+        loss = sum([F.l1_loss(a, b) for a, b in zip(fake_feat, real_feat)]) / len(fake_feat)
+
+    if config['l1_loss']:
+        loss = loss + F.l1_loss(img, targets)
 
     if use_wandb:
         wandb.log({"loss": loss}, step=idx)
