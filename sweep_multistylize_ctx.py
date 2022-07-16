@@ -24,8 +24,8 @@ from copy import deepcopy
 from id_loss import IDLoss
 
 use_wandb = True
-run_name = 'multistyle_baseline_dummy_dirnet'
-run_desc = 'baseline multistyle + dirnet is just an identity function -- try jojogan directly on multiple styles'
+run_name = 'multistyle_baseline_keep_og'
+run_desc = 'baseline multistyle + use original generator to generate w codes for style mixing'
 
 
 hyperparam_defaults = dict(
@@ -203,9 +203,10 @@ with torch.no_grad():
 generator = deepcopy(original_generator)
 
 if not config['id_loss']:
-    original_generator.cpu()
-    del original_generator
-    torch.cuda.empty_cache()
+    pass
+    # original_generator.cpu()
+    # del original_generator
+    # torch.cuda.empty_cache()
 else:
     id_encoder = IDLoss().to(device).eval()
     original_generator.eval()
@@ -242,7 +243,7 @@ if use_wandb:
 
 for idx in tqdm(range(config['num_iter'])):
     with torch.no_grad():
-        mean_w = generator.get_latent(torch.randn([latents.size(0), latent_dim]).to(device)).unsqueeze(1).repeat(1,
+        mean_w = original_generator.get_latent(torch.randn([latents.size(0), latent_dim]).to(device)).unsqueeze(1).repeat(1,
                                                                                                              generator.n_latent,
                                                                                                              1)
     in_latent = latents.clone()
