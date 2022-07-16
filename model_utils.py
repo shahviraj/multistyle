@@ -22,6 +22,10 @@ def perform_splat_only_on_one(latent, id_swap):
 
     return splat_latent
 
+class DirNet_Id(nn.Module):
+    def forward(self, x):
+        return x
+
 class DirNet(nn.Module):
     def __init__(
             self, in_dim, out_dim, n_out, n_indx, init, bias=True, bias_init=0, lr_mul=1, activation=None, device='cpu'
