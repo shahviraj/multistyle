@@ -24,15 +24,16 @@ from copy import deepcopy
 from id_loss import IDLoss
 
 use_wandb = True
-run_name = 'multistyle_with_mse_l1_loss'
-run_desc = 'baseline multistyle + l1 loss is replaced with MSE loss + new l1 loss b/w images and targets are added'
+run_name = 'multistyle_baseline_id_loss_10x_weight'
+run_desc = 'baseline multistyle + id_loss with 2e-2 + added few no_grad() statements to avoid any mistake in gradient calculations'
 
 
 hyperparam_defaults = dict(
     learning = True,
     mse_loss = False,
     l1_loss = False,
-    id_loss = False,
+    id_loss = True,
+    id_loss_w = 2e-2,
     names = [
             #'arcane_caitlyn.png',
             #'art.png',
@@ -96,7 +97,8 @@ device = 'cuda'
 original_generator = Generator(1024, latent_dim, 8, 2).to(device)
 ckpt = torch.load('../../models/multistyle/stylegan2-ffhq-config-f.pt', map_location=lambda storage, loc: storage)
 original_generator.load_state_dict(ckpt["g_ema"], strict=False)
-mean_latent = original_generator.mean_latent(10000)
+with torch.no_grad():
+    mean_latent = original_generator.mean_latent(10000)
 
 transform = transforms.Compose(
     [
@@ -194,12 +196,18 @@ for p in discriminator.parameters():
 
 torch.manual_seed(config['seed'])
 z = torch.randn(config['n_sample'], latent_dim, device=device)
-original_sample = original_generator([z], truncation=0.7, truncation_latent=mean_latent)
+with torch.no_grad():
+    original_sample = original_generator([z], truncation=0.7, truncation_latent=mean_latent)
 
 generator = deepcopy(original_generator)
-original_generator.cpu()
-del original_generator
-torch.cuda.empty_cache()
+
+if not config['id_loss']:
+    original_generator.cpu()
+    del original_generator
+    torch.cuda.empty_cache()
+else:
+    id_encoder = IDLoss().to(device).eval()
+    original_generator.eval()
 
 # Which layers to swap for generating a family of plausible real images -> fake image
 if config['preserve_color']:
@@ -231,7 +239,8 @@ if use_wandb:
             step=0)
 
 for idx in tqdm(range(config['num_iter'])):
-    mean_w = generator.get_latent(torch.randn([latents.size(0), latent_dim]).to(device)).unsqueeze(1).repeat(1,
+    with torch.no_grad():
+        mean_w = generator.get_latent(torch.randn([latents.size(0), latent_dim]).to(device)).unsqueeze(1).repeat(1,
                                                                                                              generator.n_latent,
                                                                                                              1)
     in_latent = latents.clone()
@@ -262,6 +271,15 @@ for idx in tqdm(range(config['num_iter'])):
 
     if config['l1_loss']:
         loss = loss + F.l1_loss(img, targets)
+
+    if config['id_loss']:
+        # id loss
+        rand_img = generator(dirnet(mean_w), input_is_latent=True)
+        with torch.no_grad():
+            o_rand_img = original_generator(mean_w, input_is_latent=True)
+        id_loss = config['id_loss_w'] * id_encoder(rand_img.mean(1, keepdim=True).repeat(1, 3, 1, 1),
+                                    o_rand_img.mean(1, keepdim=True).repeat(1, 3, 1, 1))
+        loss = loss + id_loss
 
     if use_wandb:
         wandb.log({"loss": loss}, step=idx)
@@ -336,7 +354,6 @@ faces = torch.stack(facelist, 0)
 style_images = torch.stack(style_images, 0).to(device)
 display_image(utils.make_grid(style_images, normalize=True, range=(-1, 1)), title='References',
               save=False, use_wandb=use_wandb)
-
 
 for i in range(len(config['names'])):
     my_output = torch.cat([faces, my_samples[i]], 0)
