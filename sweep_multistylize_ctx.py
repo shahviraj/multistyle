@@ -24,16 +24,17 @@ from copy import deepcopy
 from id_loss import IDLoss
 
 use_wandb = True
-run_name = 'multistyle_baseline_id_loss_10x_weight'
-run_desc = 'baseline multistyle + id_loss with 2e-2 + added few no_grad() statements to avoid any mistake in gradient calculations'
+run_name = 'multistyle_baseline_dummy_dirnet'
+run_desc = 'baseline multistyle + dirnet is just an identity function -- try jojogan directly on multiple styles'
 
 
 hyperparam_defaults = dict(
     learning = True,
     mse_loss = False,
     l1_loss = False,
-    id_loss = True,
-    id_loss_w = 2e-2,
+    id_loss = False,
+    ctx_loss= False,
+    id_loss_w = 2e-3,
     names = [
             #'arcane_caitlyn.png',
             #'art.png',
@@ -222,12 +223,13 @@ if n_styles > 1:
         dirnet = DirNet(latent_dim, latent_dim, n_styles, id_swap, init=config['init'], activation=config['dir_act'], device=device).to(device)
     elif config['weight_type'] == 'sep': # separate Transformation applied for every row for each style (total Tx = n_rows to be modified x n_styles)
         dirnet = DirNetSep(latent_dim, latent_dim, n_styles, id_swap, init=config['init'], activation=config['dir_act'], device=device).to(device)
+    elif config['weight_type'] == 'dummy':
+        dirnet = DirNet_Id().to(device)
     else:
         raise NotImplementedError
 else:
-    #dirnet = DirNet_Id().to(device)
-    dirnet = DirNet(latent_dim, latent_dim, n_styles, id_swap, init=config['init'], activation=config['dir_act'],
-                    device=device).to(device)
+    dirnet = DirNet_Id().to(device)
+
 
 
 
