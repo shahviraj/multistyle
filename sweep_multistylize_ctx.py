@@ -25,18 +25,18 @@ from id_loss import IDLoss
 import contextual_loss.functional as FCX
 
 use_wandb = True
-run_name = 'multistyle_baseline_og_restyle_ctx'
-run_desc = 'baseline jojogan + use contextual loss with wt 0.01 + use restyle inversion + use original generator to generate w codes for style mixing'
+run_name = 'multistyle_baseline_og_id_loss_ctx_inv_mix'
+run_desc = 'baseline jojogan + use inversion code mixing +  use the id loss with wt 0.002 + use contextual loss with wt 0.01 + use restyle inversion + use original generator to generate w codes for style mixing'
 
 
 hyperparam_defaults = dict(
     learning = True,
     mse_loss = False,
     l1_loss = False,
-    id_loss = False,
+    id_loss = True,
     ctx_loss= True,
-    mixed_inv = False,
-    preserve_shape = True,
+    mixed_inv = True,
+    preserve_shape = False,
     ctx_loss_w = 0.01,
     id_loss_w = 2e-3,
     names = [
@@ -69,7 +69,7 @@ hyperparam_defaults = dict(
     dir_act = 'tanh',
     init = 'identity',
     weight_type = 'std',
-    inv_method = 'restyle',
+    inv_method = 'e4e',
     log_interval = 100,
     learning_rate = 2e-3,
     alpha = 0.7,
