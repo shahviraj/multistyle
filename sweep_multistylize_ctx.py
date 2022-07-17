@@ -22,10 +22,11 @@ from restyle_projection import restyle_projection
 from copy import deepcopy
 
 from id_loss import IDLoss
+import contextual_loss.functional as FCX
 
 use_wandb = True
-run_name = 'multistyle_baseline_keep_og'
-run_desc = 'baseline multistyle + use original generator to generate w codes for style mixing'
+run_name = 'multistyle_baseline_og_restyle_ctx'
+run_desc = 'baseline jojogan + use contextual loss with wt 0.01 + use restyle inversion + use original generator to generate w codes for style mixing'
 
 
 hyperparam_defaults = dict(
@@ -33,7 +34,10 @@ hyperparam_defaults = dict(
     mse_loss = False,
     l1_loss = False,
     id_loss = False,
-    ctx_loss= False,
+    ctx_loss= True,
+    mixed_inv = False,
+    preserve_shape = True,
+    ctx_loss_w = 0.01,
     id_loss_w = 2e-3,
     names = [
             #'arcane_caitlyn.png',
@@ -65,7 +69,7 @@ hyperparam_defaults = dict(
     dir_act = 'tanh',
     init = 'identity',
     weight_type = 'std',
-    inv_method = 'e4e',
+    inv_method = 'restyle',
     log_interval = 100,
     learning_rate = 2e-3,
     alpha = 0.7,
@@ -137,6 +141,25 @@ def prepare_inputs(config):
     my_ws = torch.stack(my_wlist, 0)
     return my_ws, aligned_facelist
 
+def inversion_mixing(latent, config):
+    if config['preserve_shape']:
+        return latent
+    else:
+        for j in range(len(latent)):
+            if j in (6, 8): # corresp. to 8 and 11 in S space
+                 latent[j] = mean_latent
+            elif j in (3, 4,): # corresp. to 3 and 5 in S Space
+                if j == 3:
+                    alpha = .1
+                else:
+                    alpha = .3
+                mouth_latent = (1 - alpha) * mean_latent + alpha  * latent[j]
+
+                latent[j] = mouth_latent
+            else:
+                latent[j] = latent[j]
+        return latent
+
 def prepare_targets(config):
 
     targets = []
@@ -171,18 +194,32 @@ def prepare_targets(config):
         else:
             latent = torch.load(style_code_path)['latent']
 
+        latent = inversion_mixing(latent, config)
+
         targets.append(transform(style_aligned).to(device))
         latents.append(latent.to(device))
 
     targets = torch.stack(targets, 0)
     latents = torch.stack(latents, 0)
 
-
     return targets, latents
 
 my_ws, aligned_facelist = prepare_inputs(config)
 
 targets, latents = prepare_targets(config)
+
+if config['mixed_inv']:
+    with torch.no_grad():
+        inv_styles = original_generator(latents, input_is_latent=True)
+
+        display_image(utils.make_grid(inv_styles, normalize=True, range=(-1, 1)), title='Reference Inversions after mixing',
+                      save=False, use_wandb=use_wandb)
+
+        inv_styles = inv_styles.detach()
+        del inv_styles
+        torch.cuda.empty_cache()
+
+
 
 target_im = utils.make_grid(targets, normalize=True, range=(-1, 1))
 display_image(target_im, title='Style References', save=False)
@@ -202,15 +239,16 @@ with torch.no_grad():
 
 generator = deepcopy(original_generator)
 
-if not config['id_loss']:
-    pass
+if not config['id_loss'] or not config['ctx_loss']:
+    original_generator.eval()
     # original_generator.cpu()
     # del original_generator
     # torch.cuda.empty_cache()
 else:
     id_encoder = IDLoss().to(device).eval()
     original_generator.eval()
-
+if config['ctx_loss']:
+    vgg = VGG19().to(device).eval()
 # Which layers to swap for generating a family of plausible real images -> fake image
 if config['preserve_color']:
     id_swap = [9, 11, 15, 16, 17]
@@ -230,9 +268,6 @@ if n_styles > 1:
         raise NotImplementedError
 else:
     dirnet = DirNet_Id().to(device)
-
-
-
 
 g_optim = optim.Adam(list(generator.parameters()) + list(dirnet.parameters()), lr=config['learning_rate'], betas=(0, 0.99))
 
@@ -275,14 +310,28 @@ for idx in tqdm(range(config['num_iter'])):
     if config['l1_loss']:
         loss = loss + F.l1_loss(img, targets)
 
-    if config['id_loss']:
+    if config['id_loss'] or config['ctx_loss']:
         # id loss
         rand_img = generator(dirnet(mean_w), input_is_latent=True)
-        with torch.no_grad():
-            o_rand_img = original_generator(mean_w, input_is_latent=True)
-        id_loss = config['id_loss_w'] * id_encoder(rand_img.mean(1, keepdim=True).repeat(1, 3, 1, 1),
-                                    o_rand_img.mean(1, keepdim=True).repeat(1, 3, 1, 1))
-        loss = loss + id_loss
+        if config['id_loss']:
+            with torch.no_grad():
+                o_rand_img = original_generator(mean_w, input_is_latent=True)
+            id_loss = config['id_loss_w'] * id_encoder(rand_img.mean(1, keepdim=True).repeat(1, 3, 1, 1),
+                                        o_rand_img.mean(1, keepdim=True).repeat(1, 3, 1, 1))
+            loss = loss + id_loss
+        if config['ctx_loss']:
+            fake_feats = vgg(rand_img)
+            #fake_styles = [F.adaptive_avg_pool2d(fake_feat, output_size=1) for fake_feat in fake_feats]
+            with torch.no_grad():
+                target_feats = vgg(targets)
+                # target_styles = [F.adaptive_avg_pool2d(target_feat, output_size=1).detach() for target_feat in target_feats]
+                # real_feats = vgg(o_rand_img)
+
+            # sty_loss = .25*(F.mse_loss(fake_styles[1], target_styles[1]) + F.mse_loss(fake_styles[2], target_styles[2]))
+            ctx_loss = config['ctx_loss_w'] * FCX.contextual_loss(fake_feats[2], target_feats[2].detach(), band_width=0.5,
+                                                 loss_type='cosine')
+            # ctx_loss2 =  .05*FCX.contextual_loss(fake_feats[4], real_feats[4].detach(), band_width=0.2, loss_type='cosine')
+            loss = loss + ctx_loss
 
     if use_wandb:
         wandb.log({"loss": loss}, step=idx)
