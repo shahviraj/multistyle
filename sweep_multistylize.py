@@ -23,12 +23,37 @@ use_wandb = True
 hyperparam_defaults = dict(
     splatting = False,
     learning = True,
-    names = ['arcane_jinx.png', 'jojo.png'],#, 'jojo.png'],
-    filenamelist = ['iu.jpeg', 'arnold.jpeg','chris.jpeg', 'gal.jpeg'],
+    names = [
+	#'arcane_jinx.png',
+	#'jojo.png', 
+	'jojo_yasuho.png',
+	#'sketch.png',
+	'iu.jpeg',
+	#'arcane_viktor.png',
+	#'jojo_yasuho.png',
+	#'sketch.png',
+	'arcane_jayce.png',
+	#'arcane_caitlyn.png',
+	#'titan.jpeg',
+	'audrey.jpg',
+	#'cheryl.jpg',
+	#'flower.jpeg',
+	#'elliee.jpeg',
+	#'yukako.jpeg',
+	#'marilyn.jpg',
+	#'water.jpeg',
+	#'matisse.jpeg',
+	],
+    filenamelist = [
+	'iu.jpeg',
+	#'arnold.jpeg',
+	#'chris.jpeg',
+	#'gal.jpeg'
+	],
     fake_splatting = False,
     preserve_color = False,
     per_style_iter = None,
-    num_iter = 500,
+    num_iter = 1000,
     dir_act = 'tanh',
     init = 'identity',
     log_interval = 100,
@@ -160,7 +185,7 @@ for name in config['names']:
     style_aligned_path = os.path.join('style_images_aligned', f'{name}.png')
 
     if not os.path.exists(style_aligned_path):
-        style_path = os.path.join('style_images', name)
+        style_path = os.path.join('style_images', name+'.jpeg')
         assert os.path.exists(style_path), f"{style_path} does not exist!"
         style_aligned = align_face(style_path)
         style_aligned.save(style_aligned_path)
@@ -256,8 +281,9 @@ for idx in tqdm(range(config['num_iter'])):
         fake_feat = discriminator(img)
 
     loss = sum([F.l1_loss(a, b) for a, b in zip(fake_feat, real_feat)]) / len(fake_feat)
-
     if use_wandb:
+        wandb.log({"loss": loss}, step=idx)
+    if False:#use_wandb:
         wandb.log({"loss": loss}, step=idx)
         if idx == 10 or idx % config['log_interval'] == (config['log_interval']-1):
             generator.eval()
