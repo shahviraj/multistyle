@@ -1,0 +1,13 @@
+program: check_inversion.py
+name: inv_check_sweep_single
+project: multistyle_inv_check
+method: grid
+metric:
+  goal: minimize
+  name: loss
+parameters:
+  inv_mix:
+    values: [[0], [1], [2], [3], [4], [5], [6], [7], [8], [9], [10], [11], [12], [13], [14], [15], [16], [17]]
+
+  inv_method:
+    values: ['e4e' , 'restyle']
