@@ -25,15 +25,15 @@ from id_loss import IDLoss
 import contextual_loss.functional as FCX
 
 use_wandb = True
-run_name = 'multistyle_baseline_og_id_loss_ctx_inv_mix'
-run_desc = 'baseline jojogan + use inversion code mixing +  use the id loss with wt 0.002 + use contextual loss with wt 0.01 + use restyle inversion + use original generator to generate w codes for style mixing'
+run_name = 'multistyle_baseline_og_ctx_inv_mix_sty_mix'
+run_desc = 'baseline multistyle +  use inversion code mixing + for style mixing, use 1,3,5,7 rows as well + use contextual loss with wt 0.01  + use original generator to generate w codes for style mixing'
 
 
 hyperparam_defaults = dict(
     learning = True,
     mse_loss = False,
     l1_loss = False,
-    id_loss = True,
+    id_loss = False,
     ctx_loss= True,
     mixed_inv = True,
     preserve_shape = False,
@@ -62,7 +62,7 @@ hyperparam_defaults = dict(
             #'water.jpeg',
             #'matisse.jpeg',
              ],#, 'jojo.png'],
-    filenamelist = ['iu.jpeg'],
+    filenamelist = ['iu.jpeg'],#, 'arnold.jpeg', 'chris.jpeg', 'gal.jpeg', 'tom.jpeg'],
     preserve_color = False,
     per_style_iter = None,
     num_iter = 500,
@@ -78,7 +78,11 @@ hyperparam_defaults = dict(
 )
 
 if use_wandb:
-    wandb.init(config=hyperparam_defaults, project="multistyle_ctx", entity='shahviraj', name=run_name, dir = '../../outputs/multistyle/wandb/',
+    wandb.init(config=hyperparam_defaults,
+               project="multistyle_ctx",
+               entity='shahviraj',
+               name=run_name,
+               dir = '../../outputs/multistyle/wandb/',
                notes=run_desc)
     config = wandb.config
     if config['per_style_iter'] == 'None':
@@ -146,14 +150,14 @@ def inversion_mixing(latent, config):
         return latent
     else:
         for j in range(len(latent)):
-            if j in (6, 8): # corresp. to 8 and 11 in S space
+            if j in [6, 8]: # corresp. to 8 and 11 in S space
                  latent[j] = mean_latent
             elif j in (3, 4,): # corresp. to 3 and 5 in S Space
                 if j == 3:
                     alpha = .1
                 else:
                     alpha = .3
-                mouth_latent = (1 - alpha) * mean_latent + alpha  * latent[j]
+                mouth_latent = (alpha) * mean_latent + (1.0 - alpha)  * latent[j]
 
                 latent[j] = mouth_latent
             else:
@@ -220,7 +224,6 @@ if config['mixed_inv']:
         torch.cuda.empty_cache()
 
 
-
 target_im = utils.make_grid(targets, normalize=True, range=(-1, 1))
 display_image(target_im, title='Style References', save=False)
 
@@ -253,7 +256,8 @@ if config['ctx_loss']:
 if config['preserve_color']:
     id_swap = [9, 11, 15, 16, 17]
 else:
-    id_swap = list(range(7, generator.n_latent))
+    #id_swap = list(range(7, generator.n_latent))
+    id_swap = [1,3,5] + list(range(7, generator.n_latent))
 
 n_styles = len(config['names'])
 
@@ -386,7 +390,7 @@ with torch.no_grad():
     stylized_my_w = dirnet(my_ws.unsqueeze(1).repeat([1, n_styles , 1, 1]))
     for i in range(len(config['names'])):
         my_samples.append(generator(stylized_my_w[:, i,...], input_is_latent=True))
-
+    #
     target_samples = []
     stylized_target_w = dirnet(latents.unsqueeze(1).repeat([1, n_styles, 1, 1]))
     for i in range(len(config['names'])):
@@ -409,6 +413,7 @@ display_image(utils.make_grid(style_images, normalize=True, range=(-1, 1)), titl
 
 for i in range(len(config['names'])):
     my_output = torch.cat([faces, my_samples[i]], 0)
+    #my_output = my_samples[i]
     display_image(utils.make_grid(my_output, nrow= my_samples[i].shape[0],normalize=True, range=(-1, 1)), title='Test Samples'.format(i,config['num_iter'],config['alpha']),
                   save=False, use_wandb=use_wandb)
 
@@ -448,14 +453,27 @@ for i in range(len(config['names'])):
 #         )
 print("Done!")
 
-# # interpolate between two styles
+# interpolate between two styles
 # with torch.no_grad():
 #     my_samples = []
-#     for i in range(10):
+#     for i in range(5):
 #         blended_w = (0.1)*i*stylized_my_w[:,0,:,:] + (1.0 - 0.1*i)*stylized_my_w[:,1,:,:]
 #         my_samples.append(generator(blended_w, input_is_latent=True))
 #
 #     my_samples = torch.cat(my_samples,0)
 #
-#     display_image(utils.make_grid(my_samples, nrow= 2,normalize=True, range=(-1, 1)), title='Blended samples',
+#     display_image(utils.make_grid(my_samples, nrow=5,normalize=True, range=(-1, 1)), title='Blended samples',
+#                   save=False, use_wandb=use_wandb)
+
+#
+# with torch.no_grad():
+#     my_samples = []
+#     for i in range(10):
+#         blended_w = stylized_my_w[:,0,:,:]
+#         blended_w[:,7:,:] = (0.1)*i*stylized_my_w[:,0,7:,:] + (1.0 - 0.1*i)*stylized_my_w[:,1,7:,:]
+#         my_samples.append(generator(blended_w, input_is_latent=True))
+#
+#     my_samples = torch.cat(my_samples,0)
+#
+#     display_image(utils.make_grid(my_samples, nrow= 5,normalize=True, range=(-1, 1)), title='Blended samples',
 #                   save=False, use_wandb=use_wandb)
