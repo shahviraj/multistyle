@@ -25,7 +25,7 @@ from id_loss import IDLoss
 import contextual_loss.functional as FCX
 
 use_wandb = True
-run_name = 'check inversion'
+
 run_desc = 'check the output of inversion after performing the inversion mixing for various layers'
 
 
@@ -63,17 +63,18 @@ if use_wandb:
     wandb.init(config=hyperparam_defaults,
                project="multistyle_inv_check",
                entity='shahviraj',
-               name=run_name,
+               name= 'trialname',
                dir = '../../outputs/multistyle/wandb/',
                notes=run_desc)
     config = wandb.config
+    print(wandb.run.name)
+    wandb.run.name = f'inv_mix_{config["inv_method"]}_{config["inv_mix"]}'
+    #wandb.run.update()
 else:
     config = hyperparam_defaults
 
+
  #@param {type:"string"}
-filepathlist = []
-for filename in config['filenamelist']:
-    filepathlist.append(f'test_input/{filename}')
 
 latent_dim = 512
 device = 'cuda'
@@ -94,23 +95,12 @@ transform = transforms.Compose(
 )
 
 def inversion_mixing(latent, config):
-    if config['preserve_shape']:
-        return latent
-    else:
-        for j in range(len(latent)):
-            if j in config['inv_mix']: # corresp. to 8 and 11 in S space
-                 latent[j] = mean_latent
-            # elif j in (3, 4,): # corresp. to 3 and 5 in S Space
-            #     if j == 3:
-            #         alpha = .1
-            #     else:
-            #         alpha = .3
-            #     mouth_latent = (alpha) * mean_latent + (1.0 - alpha)  * latent[j]
-            #
-            #     latent[j] = mouth_latent
-            else:
-                latent[j] = latent[j]
-        return latent
+    for j in range(len(latent)):
+        if j in config['inv_mix']: # corresp. to 8 and 11 in S space
+             latent[j] = mean_latent
+        else:
+            latent[j] = latent[j]
+    return latent
 
 def prepare_targets(config):
 

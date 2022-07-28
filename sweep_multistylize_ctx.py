@@ -39,6 +39,7 @@ hyperparam_defaults = dict(
     preserve_shape = False,
     ctx_loss_w = 0.01,
     id_loss_w = 2e-3,
+    inv_mix = [2],
     names = [
             #'arcane_caitlyn.png',
             #'art.png',
@@ -62,7 +63,7 @@ hyperparam_defaults = dict(
             #'water.jpeg',
             #'matisse.jpeg',
              ],#, 'jojo.png'],
-    filenamelist = ['iu.jpeg'],#, 'arnold.jpeg', 'chris.jpeg', 'gal.jpeg', 'tom.jpeg'],
+    filenamelist = ['iu.jpeg', 'arnold.jpeg', 'chris.jpeg', 'gal.jpeg', 'tom.jpeg'],
     preserve_color = False,
     per_style_iter = None,
     num_iter = 500,
@@ -150,16 +151,16 @@ def inversion_mixing(latent, config):
         return latent
     else:
         for j in range(len(latent)):
-            if j in [6, 8]: # corresp. to 8 and 11 in S space
+            if j in config['inv_mix']: # corresp. to 8 and 11 in S space
                  latent[j] = mean_latent
-            elif j in (3, 4,): # corresp. to 3 and 5 in S Space
-                if j == 3:
-                    alpha = .1
-                else:
-                    alpha = .3
-                mouth_latent = (alpha) * mean_latent + (1.0 - alpha)  * latent[j]
-
-                latent[j] = mouth_latent
+            # elif j in (3, 4,): # corresp. to 3 and 5 in S Space
+            #     if j == 3:
+            #         alpha = .1
+            #     else:
+            #         alpha = .3
+            #     mouth_latent = (alpha) * mean_latent + (1.0 - alpha)  * latent[j]
+            #
+            #     latent[j] = mouth_latent
             else:
                 latent[j] = latent[j]
         return latent
@@ -257,7 +258,7 @@ if config['preserve_color']:
     id_swap = [9, 11, 15, 16, 17]
 else:
     #id_swap = list(range(7, generator.n_latent))
-    id_swap = [1,3,5] + list(range(7, generator.n_latent))
+    id_swap = list(range(7, generator.n_latent))
 
 n_styles = len(config['names'])
 
