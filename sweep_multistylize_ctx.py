@@ -25,50 +25,49 @@ from id_loss import IDLoss
 import contextual_loss.functional as FCX
 
 use_wandb = True
-run_name = 'multistyle_baseline_og_id_loss_ctx_inv_mix'
-run_desc = 'baseline jojogan + use inversion code mixing +  use the id loss with wt 0.002 + use contextual loss with wt 0.01 + use restyle inversion + use original generator to generate w codes for style mixing'
-
+run_name = 'multistyle_baseline_og_ctx_10_styles'
+run_desc = 'baseline multistyle + 10 styles +  use contextual loss with wt 0.01 + use e4e inversion + use original generator to generate w codes for style mixing'
 
 hyperparam_defaults = dict(
     learning = True,
     mse_loss = False,
     l1_loss = False,
-    id_loss = True,
+    id_loss = False,
     ctx_loss= True,
-    mixed_inv = True,
-    preserve_shape = False,
+    mixed_inv = False,
+    preserve_shape = True,
     ctx_loss_w = 0.01,
     id_loss_w = 2e-3,
     names = [
             #'arcane_caitlyn.png',
             #'art.png',
             'arcane_jinx.png',
-            'jojo.png',
-            #'jojo_yasuho.png',
-            #'sketch.png',
+            #'jojo.png',
+            'jojo_yasuho.png',
+            'sketch.png',
             #'arcane_viktor.png',
             #'jojo_yasuho.png',
             #'sketch.png',
             #'arcane_jayce.png',
-            #'arcane_caitlyn.png',
+            'arcane_caitlyn.png',
             #'titan.jpeg',
-            #'audrey.jpg',
+            'audrey.jpg',
             #'arcane_texture.jpeg',
             #'cheryl.jpg',
-            #'flower.jpeg',
-            #'elliee.jpeg',
-            #'yukako.jpeg',
-            #'marilyn.jpg',
-            #'water.jpeg',
+            'flower.jpeg',
+            'elliee.jpeg',
+            'yukako.jpeg',
+            'marilyn.jpg',
+            'water.jpeg',
             #'matisse.jpeg',
              ],#, 'jojo.png'],
-    filenamelist = ['iu.jpeg'],
+    filenamelist = ['iu.jpeg','arnold.jpeg','chris.jpeg', 'gal.jpeg', 'tom.jpeg'],
     preserve_color = False,
     per_style_iter = None,
     num_iter = 500,
     dir_act = 'tanh',
     init = 'identity',
-    weight_type = 'std',
+    weight_type = 'sep',
     inv_method = 'e4e',
     log_interval = 100,
     learning_rate = 2e-3,
@@ -419,7 +418,7 @@ torch.cuda.empty_cache()
 
 target_images = torch.cat(target_samples, 0).to(device)
 all_t = torch.cat([style_images, target_images], 0)
-display_image(utils.make_grid(all_t, nrow=2, normalize=True, range=(-1, 1)), title='Target Stylizations (with ref images on top)',
+display_image(utils.make_grid(all_t, nrow=n_styles, normalize=True, range=(-1, 1)), title='Target Stylizations (with ref images on top)',
               save=False, use_wandb=use_wandb)
 
 
@@ -436,17 +435,18 @@ for i in range(len(config['names'])):
 # t = ''
 # for v in config['names']:
 #     t = v + '_' + t
-# torch.save(
-#             {
-#                 "g": generator.state_dict(),
-#             },
-#             #f"checkpoint_{args.dataset}/{names[0]}_preserve_color.pt",
-#             #f"checkpoint_{args.dataset}/restyle_{names[0]}.pt",
-#
-#             f"../checkpoint_{t}_{config['num_iter']}.pt",
-#             #f"checkpoint_{args.dataset}/latest.pt",
-#         )
-print("Done!")
+torch.save(
+         {
+                "g": generator.state_dict(),
+		"dirnet":dirnet.state_dict()
+             },
+           f"../{run_name}_model.pt",
+      #       f"checkpoint_{args.dataset}/restyle_{names[0]}.pt",
+
+      #      f"../checkpoint_{t}_{config['num_iter']}.pt",
+      #       f"checkpoint_{args.dataset}/latest.pt",
+         )
+print("model saved, Done!")
 
 # # interpolate between two styles
 # with torch.no_grad():
@@ -459,3 +459,8 @@ print("Done!")
 #
 #     display_image(utils.make_grid(my_samples, nrow= 2,normalize=True, range=(-1, 1)), title='Blended samples',
 #                   save=False, use_wandb=use_wandb)
+z = torch.randn(20, latent_dim, device=device)
+w = generator.get_latent(z).unsqueeze(1).repeat(1, generator.n_latent, 1)
+img = generator(w, input_is_latent=True)
+display_image(utils.make_grid(img, nrows=5, normalize=True, range=(-1, 1)), title='random gen',
+              save=False, use_wandb=use_wandb)
