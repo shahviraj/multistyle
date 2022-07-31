@@ -64,8 +64,6 @@ hyperparam_defaults = dict(
             #'marilyn.jpg',
             'water.jpeg',
             #'matisse.jpeg',
-            #'marilyn2.jpg',
-            #'dallas.jpg',
             #'audrey2.jpg',
             #'star.jpg',
             #'cute1.jpg',
@@ -173,28 +171,37 @@ transform = transforms.Compose(
     ]
 )
 def prepare_inputs(config):
-    testimglist = []
     my_wlist = []
     aligned_facelist = []
     for i, file in enumerate(config['filenamelist']):
         imgname = strip_path_extension(file)
-        unaligned_img_path = f'test_input/{file}'
+        unaligned_img_path = f'test_input/{strip_path_extension(file)}'
         aligned_img_path = f'test_input_aligned/{imgname}_aligned.png'
-        if os.path.exists(aligned_img_path):
-            aligned_face = Image.open(aligned_img_path).convert('RGB')
+
+        if not os.path.exists(aligned_img_path):
+            try:
+                face_path = unaligned_img_path +'.jpg'
+                assert os.path.exists(face_path), f"{face_path} does not exist!"
+            except:
+                face_path = unaligned_img_path + '.jpeg'
+                assert os.path.exists(face_path), f"{face_path} does not exist!"
+
+            aligned_face = align_face(face_path)
+            aligned_face.save(aligned_img_path)
         else:
-            aligned_face = align_face(unaligned_img_path)
+            aligned_face = Image.open(aligned_img_path).convert('RGB')
+
         aligned_facelist.append(aligned_face)
 
         inv_code_path = os.path.join(f'../../models/multistyle/{config["inv_method"]}_inversion_codes', f'{imgname}_aligned.pt')
         if os.path.exists(inv_code_path):
             my_w = torch.load(inv_code_path)['latent']
         else:
-            testimglist.append(inv_code_path)
+
             if config['inv_method'] == 'e4e':
-                my_w = e4e_projection(aligned_face, testimglist[i], device)
+                my_w = e4e_projection(aligned_face, inv_code_path, device)
             elif config['inv_method'] == 'restyle':
-                my_w = restyle_projection(aligned_face, testimglist[i], device)
+                my_w = restyle_projection(aligned_face, inv_code_path, device)
             else:
                 raise NotImplementedError
         my_wlist.append(my_w.to(device))
