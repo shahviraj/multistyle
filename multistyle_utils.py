@@ -112,3 +112,21 @@ def save_single_image(mode,i, images, config, use_wandb):
 
 
 
+def save_batch_images(batch_num, images, config, use_wandb):
+    dirname = f"{len(config['names'])}styles"
+    for name in config['names']:
+        dirname = dirname + f'_{ref_code[strip_path_extension(name)]}'
+
+    dirpath = os.path.join(config['savepath'], dirname, 'full_random')
+
+    if not os.path.exists(dirpath):
+        os.makedirs(dirpath, exist_ok=True)
+
+    for i in range(len(images)):
+        fname2 = f'{config["batchsize"]*batch_num + i}.jpeg'
+        savepath2 = dirpath + '/' + fname2
+        utils.save_image(images[i,...], savepath2, normalize=True, range=(-1, 1))
+
+        if use_wandb:
+            wandbpath2 = wandb.run.dir + '/' + 'full_random' + '_' + fname2
+            utils.save_image(images[i,...], wandbpath2, normalize=True, range=(-1, 1))

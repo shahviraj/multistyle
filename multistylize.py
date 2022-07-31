@@ -126,6 +126,8 @@ hyperparam_defaults = dict(
     inv_method = 'e4e',
     log_interval = 100,
     learning_rate = 2e-3,
+    n_batches = 8,
+    batchsize = 10,
     alpha = 0.7,
     n_sample = 5,  # @param {type:"number"},
     seed = 9,  # @param {type:"number"},
@@ -453,6 +455,7 @@ with torch.no_grad():
 
     # Save stylizations of test input images
     stylized_my_w = dirnet(my_ws.unsqueeze(1).repeat([1, n_styles , 1, 1]))
+
     if config['verbose'] == 'half':
         my_samples = []
         for i in range(len(config['names'])):
@@ -479,6 +482,7 @@ with torch.no_grad():
 
     # Save stylizations of other stylized images (cross stylization)
     stylized_target_w = dirnet(latents.unsqueeze(1).repeat([1, n_styles, 1, 1]))
+
     if config['verbose'] == 'half':
         target_samples = []
         for i in range(len(config['names'])):
@@ -506,31 +510,39 @@ with torch.no_grad():
         for i in range(len(config['names'])):
             save_single_image('cross',i, generator(stylized_target_w[:, i, ...], input_is_latent=True), config, use_wandb)
 
-        # Save stylizations of other stylized images (cross stylization) but for outside the "names" set
-        stylized_target_w = dirnet(extra_latents.unsqueeze(1).repeat([1, n_styles, 1, 1]))
-        if config['verbose'] == 'half':
-            target_samples = []
-            for i in range(len(config['names'])):
-                target_samples.append(generator(stylized_target_w[:, i, ...], input_is_latent=True))
+    # Save stylizations of other stylized images (cross stylization) but for outside the "names" set
+    stylized_target_w = dirnet(extra_latents.unsqueeze(1).repeat([1, n_styles, 1, 1]))
 
-            style_images = []
-            for name in config['cross_names']:
-                style_path = f'style_images_aligned/{strip_path_extension(name)}.png'
-                style_image = transform(Image.open(style_path))
-                style_images.append(style_image)
-            style_images = torch.stack(style_images, 0).to(device)
+    if config['verbose'] == 'half':
+        target_samples = []
+        for i in range(len(config['names'])):
+            target_samples.append(generator(stylized_target_w[:, i, ...], input_is_latent=True))
 
-            target_images = torch.cat(target_samples, 0).to(device)
-            all_t = torch.cat([style_images, target_images], 0)
-            display_image(utils.make_grid(all_t, nrow=2, normalize=True, range=(-1, 1)),
-                          title='Target Stylizations (with ref images on top)',
-                          save=False, use_wandb=use_wandb)
-            all_t.cpu()
-            del all_t
-            torch.cuda.empty_cache()
-        else:
-            for i in range(len(config['cross_names'])):
-                save_single_image('cross_extra', i, generator(stylized_target_w[:, i, ...], input_is_latent=True), config,
-                                  use_wandb)
+        style_images = []
+        for name in config['cross_names']:
+            style_path = f'style_images_aligned/{strip_path_extension(name)}.png'
+            style_image = transform(Image.open(style_path))
+            style_images.append(style_image)
+        style_images = torch.stack(style_images, 0).to(device)
+
+        target_images = torch.cat(target_samples, 0).to(device)
+        all_t = torch.cat([style_images, target_images], 0)
+        display_image(utils.make_grid(all_t, nrow=2, normalize=True, range=(-1, 1)),
+                      title='Target Stylizations (with ref images on top)',
+                      save=False, use_wandb=use_wandb)
+        all_t.cpu()
+        del all_t
+        torch.cuda.empty_cache()
+    else:
+        for i in range(len(config['cross_names'])):
+            save_single_image('cross_extra', i, generator(stylized_target_w[:, i, ...], input_is_latent=True), config,
+                              use_wandb)
+
+    if config['n_batches'] != 0:
+        for i in range(config['n_batches']):
+            z = torch.randn(config['batchsize'], latent_dim, device=device)
+            w = generator.get_latent(z).unsqueeze(1).repeat(1, generator.n_latent, 1)
+            img = generator(w, input_is_latent=True)
+            save_batch_images(i, img, config, use_wandb)
 
 print("Done!")
