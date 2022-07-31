@@ -33,7 +33,11 @@ def projection(img, name, device='cuda'):
     result_file['latent'] = w_plus[0]
     if name is not None:
         torch.save(result_file, name)
+
+    net.cpu()
     del net
+    torch.cuda.empty_cache()
+
     return w_plus[0]
 
 
@@ -67,5 +71,7 @@ def projection_with_image(img, device='cuda'):
     images, w_plus = net(img, randomize_noise=False, return_latents=True)
     result_file = {}
     result_file['latent'] = w_plus[0]
+    net.cpu()
     del net
+    torch.cuda.empty_cache()
     return w_plus[0], images

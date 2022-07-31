@@ -1,4 +1,5 @@
-import scipy.stats
+# Author: Viraj Shah, vjshah3@illinois.edu
+# July 2022
 import torch
 torch.backends.cudnn.benchmark = True
 from torchvision import transforms, utils
@@ -8,13 +9,12 @@ import math
 import random
 import os
 import wandb
-
+import pickle
 from model_utils import *
 import numpy as np
 from torch import nn, autograd, optim
 from torch.nn import functional as F
 from tqdm import tqdm
-#import wandb
 from model import *
 
 from e4e_projection import projection as e4e_projection
@@ -24,13 +24,10 @@ from copy import deepcopy
 from id_loss import IDLoss
 import contextual_loss.functional as FCX
 
-<<<<<<< HEAD
+from multistyle_utils import *
+
 use_wandb = True
-run_name = 'multistyle_baseline_og_ctx_10_styles'
-run_desc = 'baseline multistyle + 10 styles +  use contextual loss with wt 0.01 + use e4e inversion + use original generator to generate w codes for style mixing'
-=======
-use_wandb = False
-run_name = 'multistyle_baseline_low_ctx_sep_sty_mix_no_7'
+run_name = 'pranjali_restyle'
 run_desc = 'baseline multistyle + use sep dirnet + use inversion code mixing only at row 2 (for shape) + for style mixing, use 5 and use 7 onwards (just like before) + use low contextual loss with wt 0.002  + use original generator to generate w codes for style mixing'
 
 hyperparam_defaults = dict(
@@ -43,49 +40,86 @@ hyperparam_defaults = dict(
     preserve_shape = False,
     ctx_loss_w = 0.002,
     id_loss_w = 2e-3,
+    verbose = 'less', # set to `full` to save all the progress to wandb
     inv_mix = [],
     sty_mix = [],
+    savepath = '../../outputs/multistyle/results/',
     names = [
             #'arcane_caitlyn.png',
             #'art.png',
             'arcane_jinx.png',
-            #'jojo.png',
-            'jojo_yasuho.png',
-            'sketch.png',
-            #'arcane_jinx.png',
-            #'jojo.png',
+            'jojo.png',
             #'jojo_yasuho.png',
             #'sketch.png',
             #'arcane_viktor.png',
-            #'jojo_yasuho.png',
-            #'sketch.png',
             #'arcane_jayce.png',
-            'arcane_caitlyn.png',
+            #'arcane_caitlyn.png',
             #'titan.jpeg',
-            'audrey.jpg',
+            #'audrey.jpg',
             #'arcane_texture.jpeg',
             #'cheryl.jpg',
-            'flower.jpeg',
-            'elliee.jpeg',
-            'yukako.jpeg',
-            'marilyn.jpg',
-            'water.jpeg',
+            #'flower.jpeg',
+            #'elliee.jpeg',
+            #'yukako.jpeg',
+            #'marilyn.jpg',
+            #'water.jpeg',
             #'matisse.jpeg',
             #'marilyn2.jpg',
             #'dallas.jpg',
             #'audrey2.jpg',
             #'star.jpg',
-            'cute1.jpg',
-            'trump1.jpg',
+            #'cute1.jpg',
+            #'trump1.jpg',
             #'cute2.jpg',
             #'greeneye.jpg',
             #'paint1.jpg',
             #'mark.jpg'
              ],#, 'jojo.png'],
-    filenamelist = ['iu.jpeg','arnold.jpeg','chris.jpeg', 'gal.jpeg', 'tom.jpeg'],
+    filenamelist = [
+                    'iu.jpeg',
+                    'arnold.jpeg',
+                    'chris.jpeg',
+                    'gal.jpeg',
+                    'tom.jpeg',
+                    'deep.jpg',
+                    'deep2.jpg',
+                    'arnold.jpeg',
+                    'brad.jpg',
+                    'cruz.jpg',
+                    'cruz2.jpg',
+                    'priy1.jpg',
+                    'priy4.jpg',
+                    'ran2.jpg',
+                    'ritik2.jpg',
+                    'robert2.jpg',
+                    ], #, ],
+    cross_names = [
+            #'art.png',
+            #'arcane_jinx.png',
+            #'jojo.png',
+            #'sketch.png',
+            #'arcane_viktor.png',
+            #'jojo_yasuho.png',
+            #'arcane_jayce.png',
+            #'arcane_caitlyn.png',
+            #'titan.jpeg',
+            #'audrey.jpg',
+            #'arcane_texture.jpeg',
+            #'cheryl.jpg',
+            #'flower.jpeg',
+            #'elliee.jpeg',
+            #'yukako.jpeg',
+            #'marilyn.jpg',
+            #'water.jpeg',
+            #'matisse.jpeg',
+            #'audrey2.jpg',
+            #'star.jpg',
+            #'greeneye.jpg',
+            #'mark.jpg'
+                ],
     preserve_color = False,
     per_style_iter = None,
-    num_iter = 500,
+    num_iter = 10,
     dir_act = 'tanh', # options ['tanh', 'relu' , None (for identity)]
     init = 'identity',
     weight_type = 'sep',
@@ -99,7 +133,7 @@ hyperparam_defaults = dict(
 
 if use_wandb:
     wandb.init(config=hyperparam_defaults,
-               project="multistyle_ctx",
+               project="multistyle_final",
                entity='shahviraj',
                name=run_name,
                dir = '../../outputs/multistyle/wandb/',
@@ -172,24 +206,21 @@ def inversion_mixing(latent, config):
         for j in range(len(latent)):
             if j in config['inv_mix']: # corresp. to 8 and 11 in S space
                  latent[j] = mean_latent
-            # elif j in (3, 4,): # corresp. to 3 and 5 in S Space
-            #     if j == 3:
-            #         alpha = .1
-            #     else:
-            #         alpha = .3
-            #     mouth_latent = (alpha) * mean_latent + (1.0 - alpha)  * latent[j]
-            #
-            #     latent[j] = mouth_latent
             else:
                 latent[j] = latent[j]
         return latent
 
-def prepare_targets(config):
+def prepare_targets(config, cross=False):
 
     targets = []
     latents = []
 
-    for name in config['names']:
+    if cross:
+        namelist = config['cross_names']
+    else:
+        namelist = config['names']
+
+    for name in namelist:
         name = strip_path_extension(name)
         style_aligned_path = os.path.join('style_images_aligned', f'{name}.png')
 
@@ -232,20 +263,21 @@ my_ws, aligned_facelist = prepare_inputs(config)
 
 targets, latents = prepare_targets(config)
 
-if config['mixed_inv']:
-    with torch.no_grad():
-        inv_styles = original_generator(latents, input_is_latent=True)
+if config['verbose'] == 'half':
+    if config['mixed_inv']:
+        with torch.no_grad():
+            inv_styles = original_generator(latents, input_is_latent=True)
 
-        display_image(utils.make_grid(inv_styles, normalize=True, range=(-1, 1)), title='Reference Inversions after mixing',
-                      save=False, use_wandb=use_wandb)
+            display_image(utils.make_grid(inv_styles, normalize=True, range=(-1, 1)), title='Reference Inversions after mixing',
+                          save=False, use_wandb=use_wandb)
 
-        inv_styles = inv_styles.detach()
-        del inv_styles
-        torch.cuda.empty_cache()
+            inv_styles = inv_styles.detach()
+            del inv_styles
+            torch.cuda.empty_cache()
 
-
-target_im = utils.make_grid(targets, normalize=True, range=(-1, 1))
-display_image(target_im, title='Style References', save=False)
+if config['verbose'] == 'half':
+    target_im = utils.make_grid(targets, normalize=True, range=(-1, 1))
+    display_image(target_im, title='Style References', save=False)
 
 # load discriminator for perceptual loss
 discriminator = Discriminator(1024, 2).eval().to(device)
@@ -264,19 +296,17 @@ generator = deepcopy(original_generator)
 
 if not config['id_loss'] or not config['ctx_loss']:
     original_generator.eval()
-    # original_generator.cpu()
-    # del original_generator
-    # torch.cuda.empty_cache()
 else:
     id_encoder = IDLoss().to(device).eval()
     original_generator.eval()
+
 if config['ctx_loss']:
     vgg = VGG19().to(device).eval()
+
 # Which layers to swap for generating a family of plausible real images -> fake image
 if config['preserve_color']:
     id_swap = [9, 11, 15, 16, 17]
 else:
-    #id_swap = list(range(7, generator.n_latent))
     id_swap = config['sty_mix'] + list(range(7, generator.n_latent))
 
 n_styles = len(config['names'])
@@ -295,10 +325,11 @@ else:
 
 g_optim = optim.Adam(list(generator.parameters()) + list(dirnet.parameters()), lr=config['learning_rate'], betas=(0, 0.99))
 
-if use_wandb:
-    wandb.log(
-            {"Style reference": [wandb.Image(transforms.ToPILImage()(target_im))]},
-            step=0)
+if config['verbose'] == 'half':
+    if use_wandb:
+        wandb.log(
+                {"Style reference": [wandb.Image(transforms.ToPILImage()(target_im))]},
+                step=0)
 
 for idx in tqdm(range(config['num_iter'])):
     with torch.no_grad():
@@ -345,161 +376,161 @@ for idx in tqdm(range(config['num_iter'])):
             loss = loss + id_loss
         if config['ctx_loss']:
             fake_feats = vgg(rand_img)
-            #fake_styles = [F.adaptive_avg_pool2d(fake_feat, output_size=1) for fake_feat in fake_feats]
             with torch.no_grad():
                 target_feats = vgg(targets)
-                # target_styles = [F.adaptive_avg_pool2d(target_feat, output_size=1).detach() for target_feat in target_feats]
-                # real_feats = vgg(o_rand_img)
 
-            # sty_loss = .25*(F.mse_loss(fake_styles[1], target_styles[1]) + F.mse_loss(fake_styles[2], target_styles[2]))
             ctx_loss = config['ctx_loss_w'] * FCX.contextual_loss(fake_feats[2], target_feats[2].detach(), band_width=0.5,
                                                  loss_type='cosine')
-            # ctx_loss2 =  .05*FCX.contextual_loss(fake_feats[4], real_feats[4].detach(), band_width=0.2, loss_type='cosine')
+
             loss = loss + ctx_loss
 
     if use_wandb:
         wandb.log({"loss": loss}, step=idx)
-        # if idx == 10 or idx % config['log_interval'] == (config['log_interval']-1):
-        #     generator.eval()
-        #     if config['splatting']:
-        #         my_samples_eval = []
-        #         for i in range(len(config['names'])):
-        #             stylized_my_ws_eval = my_ws.clone()
-        #             stylized_my_ws_eval[:, id_swap,
-        #             i * (int(latent_dim / n_styles)):(i + 1) * (int(latent_dim / n_styles))] = 0.0
-        #             my_samples_eval.append(generator(stylized_my_ws_eval, input_is_latent=True))
-        #     elif config['learning']:
-        #         my_samples_eval = []
-        #         stylized_my_ws_eval = dirnet(my_ws.unsqueeze(1).repeat([1, n_styles , 1, 1])) # input and output are n_image x n_Style x 18 x 512
-        #         for i in range(len(config['names'])):
-        #             my_samples_eval.append(generator(stylized_my_ws_eval[:, i,...], input_is_latent=True))
-        #     else:
-        #         my_sample = generator(my_ws, input_is_latent=True)
-        #     generator.train()
-        #     if config['splatting'] or config['learning']:
-        #         for i in range(len(config['names'])):
-        #             my_sample = transforms.ToPILImage()(utils.make_grid(my_samples_eval[i], nrow= my_samples_eval[i].shape[0], normalize=True, range=(-1, 1)))
-        #             wandb.log(
-        #                 {"Current stylization {}".format(i): [wandb.Image(my_sample)]},
-        #                 step=idx)
-        #         del my_samples_eval, stylized_my_ws_eval, my_sample
-        #     else:
-        #         my_sample = transforms.ToPILImage()(utils.make_grid(my_sample, normalize=True, range=(-1, 1)))
-        #         wandb.log(
-        #             {"Current stylization": [wandb.Image(my_sample)]},
-        #             step=idx)
+        if config['verbose'] == 'full':
+            if idx == 10 or idx % config['log_interval'] == (config['log_interval']-1):
+                generator.eval()
+
+                my_samples_eval = []
+                stylized_my_ws_eval = dirnet(my_ws.unsqueeze(1).repeat([1, n_styles , 1, 1])) # input and output are n_image x n_Style x 18 x 512
+                for i in range(len(config['names'])):
+                    my_samples_eval.append(generator(stylized_my_ws_eval[:, i,...], input_is_latent=True))
+
+                generator.train()
+
+                for i in range(len(config['names'])):
+                    my_sample = transforms.ToPILImage()(utils.make_grid(my_samples_eval[i], nrow= my_samples_eval[i].shape[0], normalize=True, range=(-1, 1)))
+                    wandb.log(
+                        {"Current stylization {}".format(i): [wandb.Image(my_sample)]},
+                        step=idx)
+                stylized_my_ws_eval.detach().cpu()
+                my_samples_eval = torch.stack(my_samples_eval,0).detach().cpu()
+                del my_samples_eval, stylized_my_ws_eval, my_sample
+                torch.cuda.empty_cache()
 
     g_optim.zero_grad()
     loss.backward()
     g_optim.step()
 
-# Try on new images
 
+# delete original generator to save memory
+original_generator.cpu()
+del original_generator
+torch.cuda.empty_cache()
+
+# samples for cross stylizations
+_, extra_latents = prepare_targets(config, cross=True)
+
+# Save the fine-tuned generator and dirnet
+savepath = get_savepath(config)
+torch.save(
+    {"g": generator.state_dict(), "dirnet": dirnet.state_dict(), "config": dict(config)},
+    savepath)
+
+# Try on new images
 with torch.no_grad():
     generator.eval()
 
-
+    # Save stylizations of randomly generated images
     w = generator.get_latent(z).unsqueeze(1).unsqueeze(1).repeat(1, n_styles, generator.n_latent, 1) # output becomes n_images x n_styles x 18 x 512
     stylized_w = dirnet(w)  # output becomes n_images x n_styles x 18 x 512 -- but contains stylized directions
-    samples = []
-    for i in range(n_styles):
-        samples.append(generator(stylized_w[:, i,...], input_is_latent=True))
 
+    if config['verbose'] == 'half':
+        samples = []
+        for i in range(n_styles):
+            samples.append(generator(stylized_w[:, i,...], input_is_latent=True))
 
-    my_samples = []
+        for i in range(len(config['names'])):
+            output = torch.cat([original_sample, samples[i]], 0)
+            display_image(utils.make_grid(output, normalize=True, range=(-1, 1), nrow=config['n_sample']),
+                          title='Random samples'.format(i, config['num_iter'], config['alpha']),
+                          save=False, use_wandb=use_wandb)
+            output.detach().cpu()
+            del output
+            torch.cuda.empty_cache()
+    else:
+        for i in range(n_styles):
+            save_single_image('random', i, generator(stylized_w[:, i,...], input_is_latent=True), config, use_wandb)
+
+    # Save stylizations of test input images
     stylized_my_w = dirnet(my_ws.unsqueeze(1).repeat([1, n_styles , 1, 1]))
-    for i in range(len(config['names'])):
-        my_samples.append(generator(stylized_my_w[:, i,...], input_is_latent=True))
-    #
-    target_samples = []
+    if config['verbose'] == 'half':
+        my_samples = []
+        for i in range(len(config['names'])):
+            my_samples.append(generator(stylized_my_w[:, i,...], input_is_latent=True))
+
+        facelist = []
+        for aligned_face in aligned_facelist:
+            facelist.append(transform(aligned_face).to(device))
+        faces = torch.stack(facelist, 0)
+
+        for i in range(len(config['names'])):
+            my_output = torch.cat([faces, my_samples[i]], 0)
+            # my_output = my_samples[i]
+            display_image(utils.make_grid(my_output, nrow=my_samples[i].shape[0], normalize=True, range=(-1, 1)),
+                          title='Test Samples'.format(i, config['num_iter'], config['alpha']),
+                          save=False, use_wandb=use_wandb)
+            my_output.cpu()
+            stylized_my_w.cpu()
+            del my_output, stylized_my_w
+            torch.cuda.empty_cache()
+    else:
+        for i in range(len(config['names'])):
+            save_single_image('test', i, generator(stylized_my_w[:, i,...], input_is_latent=True), config, use_wandb)
+
+    # Save stylizations of other stylized images (cross stylization)
     stylized_target_w = dirnet(latents.unsqueeze(1).repeat([1, n_styles, 1, 1]))
-    for i in range(len(config['names'])):
-        target_samples.append(generator(stylized_target_w[:, i, ...], input_is_latent=True))
+    if config['verbose'] == 'half':
+        target_samples = []
+        for i in range(len(config['names'])):
+            target_samples.append(generator(stylized_target_w[:, i, ...], input_is_latent=True))
 
-# display reference images
-style_images = []
-for name in config['names']:
-    style_path = f'style_images_aligned/{strip_path_extension(name)}.png'
-    style_image = transform(Image.open(style_path))
-    style_images.append(style_image)
+        style_images = []
+        for name in config['names']:
+            style_path = f'style_images_aligned/{strip_path_extension(name)}.png'
+            style_image = transform(Image.open(style_path))
+            style_images.append(style_image)
+        style_images = torch.stack(style_images, 0).to(device)
+        display_image(utils.make_grid(style_images, normalize=True, range=(-1, 1)), title='References',
+                      save=False, use_wandb=use_wandb)
 
-facelist = []
-for aligned_face in aligned_facelist:
-    facelist.append(transform(aligned_face).to(device))
-faces = torch.stack(facelist, 0)
-style_images = torch.stack(style_images, 0).to(device)
-display_image(utils.make_grid(style_images, normalize=True, range=(-1, 1)), title='References',
-              save=False, use_wandb=use_wandb)
+        target_images = torch.cat(target_samples, 0).to(device)
+        all_t = torch.cat([style_images, target_images], 0)
+        display_image(utils.make_grid(all_t, nrow=2, normalize=True, range=(-1, 1)),
+                      title='Target Stylizations (with ref images on top)',
+                      save=False, use_wandb=use_wandb)
 
-for i in range(len(config['names'])):
-    my_output = torch.cat([faces, my_samples[i]], 0)
-    #my_output = my_samples[i]
-    display_image(utils.make_grid(my_output, nrow= my_samples[i].shape[0],normalize=True, range=(-1, 1)), title='Test Samples'.format(i,config['num_iter'],config['alpha']),
-                  save=False, use_wandb=use_wandb)
+        all_t.cpu()
+        del all_t
+        torch.cuda.empty_cache()
+    else:
+        for i in range(len(config['names'])):
+            save_single_image('cross',i, generator(stylized_target_w[:, i, ...], input_is_latent=True), config, use_wandb)
 
-my_output.cpu()
-del my_output
-torch.cuda.empty_cache()
+        # Save stylizations of other stylized images (cross stylization) but for outside the "names" set
+        stylized_target_w = dirnet(extra_latents.unsqueeze(1).repeat([1, n_styles, 1, 1]))
+        if config['verbose'] == 'half':
+            target_samples = []
+            for i in range(len(config['names'])):
+                target_samples.append(generator(stylized_target_w[:, i, ...], input_is_latent=True))
 
-target_images = torch.cat(target_samples, 0).to(device)
-all_t = torch.cat([style_images, target_images], 0)
-display_image(utils.make_grid(all_t, nrow=n_styles, normalize=True, range=(-1, 1)), title='Target Stylizations (with ref images on top)',
-              save=False, use_wandb=use_wandb)
+            style_images = []
+            for name in config['cross_names']:
+                style_path = f'style_images_aligned/{strip_path_extension(name)}.png'
+                style_image = transform(Image.open(style_path))
+                style_images.append(style_image)
+            style_images = torch.stack(style_images, 0).to(device)
 
-all_t.cpu()
-del all_t
-torch.cuda.empty_cache()
+            target_images = torch.cat(target_samples, 0).to(device)
+            all_t = torch.cat([style_images, target_images], 0)
+            display_image(utils.make_grid(all_t, nrow=2, normalize=True, range=(-1, 1)),
+                          title='Target Stylizations (with ref images on top)',
+                          save=False, use_wandb=use_wandb)
+            all_t.cpu()
+            del all_t
+            torch.cuda.empty_cache()
+        else:
+            for i in range(len(config['cross_names'])):
+                save_single_image('cross_extra', i, generator(stylized_target_w[:, i, ...], input_is_latent=True), config,
+                                  use_wandb)
 
-for i in range(len(config['names'])):
-    output = torch.cat([original_sample, samples[i]], 0)
-    display_image(utils.make_grid(output, normalize=True, range=(-1, 1), nrow=config['n_sample']),
-                  title='Random samples'.format(i,config['num_iter'],config['alpha']),
-                  save=False, use_wandb=use_wandb)
-
-# t = ''
-# for v in config['names']:
-#     t = v + '_' + t
-torch.save(
-         {
-                "g": generator.state_dict(),
-		"dirnet":dirnet.state_dict()
-             },
-           f"../{run_name}_model.pt",
-      #       f"checkpoint_{args.dataset}/restyle_{names[0]}.pt",
-
-      #      f"../checkpoint_{t}_{config['num_iter']}.pt",
-      #       f"checkpoint_{args.dataset}/latest.pt",
-         )
-print("model saved, Done!")
-
-# interpolate between two styles
-# with torch.no_grad():
-#     my_samples = []
-#     for i in range(5):
-#         blended_w = (0.1)*i*stylized_my_w[:,0,:,:] + (1.0 - 0.1*i)*stylized_my_w[:,1,:,:]
-#         my_samples.append(generator(blended_w, input_is_latent=True))
-#
-#     my_samples = torch.cat(my_samples,0)
-#
-#     display_image(utils.make_grid(my_samples, nrow=5,normalize=True, range=(-1, 1)), title='Blended samples',
-#                   save=False, use_wandb=use_wandb)
-
-z = torch.randn(20, latent_dim, device=device)
-w = generator.get_latent(z).unsqueeze(1).repeat(1, generator.n_latent, 1)
-img = generator(w, input_is_latent=True)
-display_image(utils.make_grid(img, nrows=5, normalize=True, range=(-1, 1)), title='random gen',
-              save=False, use_wandb=use_wandb)
-
-#
-# with torch.no_grad():
-#     my_samples = []
-#     for i in range(10):
-#         blended_w = stylized_my_w[:,0,:,:]
-#         blended_w[:,7:,:] = (0.1)*i*stylized_my_w[:,0,7:,:] + (1.0 - 0.1*i)*stylized_my_w[:,1,7:,:]
-#         my_samples.append(generator(blended_w, input_is_latent=True))
-#
-#     my_samples = torch.cat(my_samples,0)
-#
-#     display_image(utils.make_grid(my_samples, nrow= 5,normalize=True, range=(-1, 1)), title='Blended samples',
-#                   save=False, use_wandb=use_wandb)
-
+print("Done!")

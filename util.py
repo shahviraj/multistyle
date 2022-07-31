@@ -1,5 +1,6 @@
 
 from matplotlib import pyplot as plt
+plt.rcParams['figure.dpi'] = 150
 import torch
 import torch.nn.functional as F
 import os

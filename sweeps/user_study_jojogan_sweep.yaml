@@ -1,0 +1,13 @@
+program: sweep_multistylize_ctx.py
+name: user_study_jojogan_sweep
+project: jojogan_user_study
+method: grid
+metric:
+  goal: minimize
+  name: loss
+parameters:
+  names:
+    values: [['flower.png'], ['sketch.png'], ['art.png'],['jojo_yasuho.png'],['water.png'],['elliee.png'], ['yukako.png'],['jojo.png']]
+
+  inv_method:
+    values: ['e4e']

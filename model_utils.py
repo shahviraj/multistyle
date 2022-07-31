@@ -69,10 +69,10 @@ class DirNetSep(nn.Module):
             for j in range(len(self.n_indx)):
                 eqlinlayers.append(
                     EqualLinearAct(in_dim, out_dim, init, bias, bias_init, lr_mul, activation).to(device))
-            self.layers.append((eqlinlayers))  # crucial in order to register every layer in the list properly
+            self.layers.append((eqlinlayers))
 
         for i in range(n_out):
-            self.layers[i] = nn.ModuleList(self.layers[i])
+            self.layers[i] = nn.ModuleList(self.layers[i]) # crucial in order to register every layer in the list properly
         self.layers = nn.ModuleList(self.layers)
 
     def forward(self, input):
