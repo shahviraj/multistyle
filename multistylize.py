@@ -27,8 +27,8 @@ import contextual_loss.functional as FCX
 from multistyle_utils import *
 
 use_wandb = True
-run_name = 'pranjali_restyle'
-run_desc = 'baseline multistyle + use sep dirnet + use inversion code mixing only at row 2 (for shape) + for style mixing, use 5 and use 7 onwards (just like before) + use low contextual loss with wt 0.002  + use original generator to generate w codes for style mixing'
+run_name = '10 styles'
+run_desc = 'baseline multistyle + use sep dirnet + no inversion code mixing + use low contextual loss with wt 0.002  + use original generator to generate w codes for style mixing'
 
 hyperparam_defaults = dict(
     learning = True,
@@ -49,20 +49,20 @@ hyperparam_defaults = dict(
             #'art.png',
             'arcane_jinx.png',
             'jojo.png',
-            #'jojo_yasuho.png',
+            'jojo_yasuho.png',
             #'sketch.png',
             #'arcane_viktor.png',
-            #'arcane_jayce.png',
+            'arcane_jayce.png',
             #'arcane_caitlyn.png',
             #'titan.jpeg',
-            #'audrey.jpg',
+            'audrey.jpg',
             #'arcane_texture.jpeg',
             #'cheryl.jpg',
-            #'flower.jpeg',
-            #'elliee.jpeg',
-            #'yukako.jpeg',
+            'flower.jpeg',
+            'elliee.jpeg',
+            'yukako.jpeg',
             #'marilyn.jpg',
-            #'water.jpeg',
+            'water.jpeg',
             #'matisse.jpeg',
             #'marilyn2.jpg',
             #'dallas.jpg',
@@ -73,7 +73,7 @@ hyperparam_defaults = dict(
             #'cute2.jpg',
             #'greeneye.jpg',
             #'paint1.jpg',
-            #'mark.jpg'
+            'mark.jpg'
              ],#, 'jojo.png'],
     filenamelist = [
                     'iu.jpeg',
@@ -94,32 +94,32 @@ hyperparam_defaults = dict(
                     'robert2.jpg',
                     ], #, ],
     cross_names = [
-            #'art.png',
-            #'arcane_jinx.png',
-            #'jojo.png',
-            #'sketch.png',
-            #'arcane_viktor.png',
-            #'jojo_yasuho.png',
-            #'arcane_jayce.png',
-            #'arcane_caitlyn.png',
-            #'titan.jpeg',
-            #'audrey.jpg',
-            #'arcane_texture.jpeg',
-            #'cheryl.jpg',
-            #'flower.jpeg',
-            #'elliee.jpeg',
-            #'yukako.jpeg',
-            #'marilyn.jpg',
-            #'water.jpeg',
-            #'matisse.jpeg',
-            #'audrey2.jpg',
-            #'star.jpg',
-            #'greeneye.jpg',
-            #'mark.jpg'
+            'art.png',
+            'arcane_jinx.png',
+            'jojo.png',
+            'sketch.png',
+            'arcane_viktor.png',
+            'jojo_yasuho.png',
+            'arcane_jayce.png',
+            'arcane_caitlyn.png',
+            'titan.jpeg',
+            'audrey.jpg',
+            'arcane_texture.jpeg',
+            'cheryl.jpg',
+            'flower.jpeg',
+            'elliee.jpeg',
+            'yukako.jpeg',
+            'marilyn.jpg',
+            'water.jpeg',
+            'matisse.jpeg',
+            'audrey2.jpg',
+            'star.jpg',
+            'greeneye.jpg',
+            'mark.jpg'
                 ],
     preserve_color = False,
     per_style_iter = None,
-    num_iter = 10,
+    num_iter = 500,
     dir_act = 'tanh', # options ['tanh', 'relu' , None (for identity)]
     init = 'identity',
     weight_type = 'sep',
