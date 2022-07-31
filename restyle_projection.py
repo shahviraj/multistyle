@@ -65,5 +65,9 @@ def restyle_projection(img, name, device='cuda'):
     result_file = {}
     result_file['latent'] = latent[0]
     torch.save(result_file, name)
+
+    net.cpu()
     del net
+    torch.cuda.empty_cache()
+
     return latent[0]
