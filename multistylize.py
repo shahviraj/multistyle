@@ -27,8 +27,8 @@ import contextual_loss.functional as FCX
 from multistyle_utils import *
 
 use_wandb = False
-run_name = 'jojogan_sweep'
-run_desc = 'baseline multistyle + use sep dirnet + use inversion code mixing only at row 2 (for shape) + for style mixing, use 5 and use 7 onwards (just like before) + use low contextual loss with wt 0.002  + use original generator to generate w codes for style mixing'
+run_name = '16styles_sep'
+run_desc = 'baseline multistyle + use sep dirnet + for style mixing, use 7 onwards (just like before) + use low contextual loss with wt 0.002  + use original generator to generate w codes for style mixing'
 
 hyperparam_defaults = dict(
     learning = True,
