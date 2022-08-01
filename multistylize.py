@@ -28,10 +28,8 @@ from multistyle_utils import *
 
 use_wandb = True
 
-run_name = '8 styles std'
-run_desc = 'baseline multistyle + use sep dirnet + no inversion code mixing + use low contextual loss with wt 0.002  + use original generator to generate w codes for style mixing'
-#run_name = 'jojogan_sweep'
-#run_desc = 'baseline multistyle + use sep dirnet + use inversion code mixing only at row 2 (for shape) + for style mixing, use 5 and use 7 onwards (just like before) + use low contextual loss with wt 0.002  + use original generator to generate w codes for style mixing'
+run_name = 'jojogan_sweep'
+run_desc = 'baseline multistyle + use sep dirnet + use inversion code mixing only at row 2 (for shape) + for style mixing, use 5 and use 7 onwards (just like before) + use low contextual loss with wt 0.002  + use original generator to generate w codes for style mixing'
 
 hyperparam_defaults = dict(
     learning = True,
@@ -104,8 +102,8 @@ hyperparam_defaults = dict(
             'sketch.png',
             'jojo_yasuho.png',
             'arcane_jayce.png',
+            'arcane_viktor.png',
             'arcane_caitlyn.png',
-            'titan.jpeg',
             'audrey.jpg',
             'arcane_texture.jpeg',
             'cheryl.jpg',
@@ -129,8 +127,8 @@ hyperparam_defaults = dict(
     inv_method = 'e4e',
     log_interval = 100,
     learning_rate = 2e-3,
-    n_batches = 8,
-    batchsize = 10,
+    n_batches = 20,
+    batchsize = 1,
     alpha = 0.7,
     n_sample = 5,  # @param {type:"number"},
     seed = 9,  # @param {type:"number"},
@@ -218,7 +216,7 @@ def inversion_mixing(latent, config):
         return latent
     else:
         for j in range(len(latent)):
-            if j in config['inv_mix']: # corresp. to 8 and 11 in S space
+            if j in config['inv_mix']:
                  latent[j] = mean_latent
             else:
                 latent[j] = latent[j]
@@ -463,7 +461,8 @@ with torch.no_grad():
             torch.cuda.empty_cache()
     else:
         for i in range(n_styles):
-            save_single_image('random', i, generator(stylized_w[:, i,...], input_is_latent=True), config, use_wandb)
+            for j in range(config['n_sample']):
+                save_single_image('random', i, j, generator(stylized_w[j, i,...].unsqueeze(0), input_is_latent=True), config, use_wandb)
 
     # Save stylizations of test input images
     stylized_my_w = dirnet(my_ws.unsqueeze(1).repeat([1, n_styles , 1, 1]))
@@ -490,7 +489,8 @@ with torch.no_grad():
             torch.cuda.empty_cache()
     else:
         for i in range(len(config['names'])):
-            save_single_image('test', i, generator(stylized_my_w[:, i,...], input_is_latent=True), config, use_wandb)
+            for j in range(len(config['filenamelist'])):
+                save_single_image('test', i, j, generator(stylized_my_w[j, i,...].unsqueeze(0), input_is_latent=True), config, use_wandb)
 
     # Save stylizations of other stylized images (cross stylization)
     stylized_target_w = dirnet(latents.unsqueeze(1).repeat([1, n_styles, 1, 1]))
@@ -520,10 +520,11 @@ with torch.no_grad():
         torch.cuda.empty_cache()
     else:
         for i in range(len(config['names'])):
-            save_single_image('cross',i, generator(stylized_target_w[:, i, ...], input_is_latent=True), config, use_wandb)
+            for j in range(len(config['names'])):
+                save_single_image('cross',i,j, generator(stylized_target_w[j, i, ...].unsqueeze(0), input_is_latent=True), config, use_wandb)
 
     # Save stylizations of other stylized images (cross stylization) but for outside the "names" set
-    stylized_target_w = dirnet(extra_latents.unsqueeze(1).repeat([1, n_styles, 1, 1]))
+    stylized_target_w = dirnet(extra_latents.unsqueeze(1).repeat([1, len(config['cross_names']), 1, 1]))
 
     if config['verbose'] == 'half':
         target_samples = []
@@ -546,8 +547,9 @@ with torch.no_grad():
         del all_t
         torch.cuda.empty_cache()
     else:
-        for i in range(len(config['cross_names'])):
-            save_single_image('cross_extra', i, generator(stylized_target_w[:, i, ...], input_is_latent=True), config,
+        for i in range(len(config['names'])):
+            for j in range(len(config['cross_names'])):
+                save_single_image('cross_extra', i,j, generator(stylized_target_w[j, i, ...].unsqueeze(0), input_is_latent=True), config,
                               use_wandb)
 
     if config['n_batches'] != 0:

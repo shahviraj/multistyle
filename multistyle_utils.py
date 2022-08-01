@@ -6,6 +6,8 @@
 # folder name is ref_codes separated by `_`, i.e. if 4 ref styles are used, name would be 4styles_2_5_12_8
 
 import os
+
+import torch.cuda
 from torchvision import transforms, utils
 import numpy as np
 import wandb
@@ -18,13 +20,14 @@ input_code = {
     "arnold" : 5,
     'deep' : 6,
     'deep2' : 7,
-    'cruz1' : 8,
+    'cruz' : 8,
     'cruz2' : 9,
     'priy1' : 10,
     'priy4' : 11,
     'ritik2' : 12,
     'ran2' : 13,
-    'robert2' : 14
+    'robert2' : 14,
+    'brad' : 15
     }
 
 ref_code = {
@@ -69,14 +72,13 @@ def get_savepath(config):
 
     return savepath
 
-def save_single_image(mode,i, images, config, use_wandb):
+def save_single_image(mode,i,j, img, config, use_wandb):
     '''
     save format: {input_code}_{ref_code}
     '''
     dirname = f"{len(config['names'])}styles"
     for name in config['names']:
         dirname = dirname + f'_{ref_code[strip_path_extension(name)]}'
-
 
     dirpath = os.path.join(config['savepath'], dirname, mode)
 
@@ -85,31 +87,33 @@ def save_single_image(mode,i, images, config, use_wandb):
 
     ref = ref_code[strip_path_extension(config['names'][i])]
 
-    for j, img in enumerate(images):
-        if mode == 'test':
-            input = input_code[strip_path_extension(config['filenamelist'][j])]
-        elif mode == 'random':
-            input = j
-        elif mode == 'cross':
-            input = ref_code[strip_path_extension(config['names'][j])]
-        elif mode == 'cross_extra':
-            input = ref_code[strip_path_extension(config['cross_names'][j])]
-        else:
-            raise NotImplementedError
+    if mode == 'test':
+        input = input_code[strip_path_extension(config['filenamelist'][j])]
+    elif mode == 'random':
+        input = j
+    elif mode == 'cross':
+        input = ref_code[strip_path_extension(config['names'][j])]
+    elif mode == 'cross_extra':
+        input = ref_code[strip_path_extension(config['cross_names'][j])]
+    else:
+        raise NotImplementedError
 
-        fname1 = f'{input}_{ref}.png'
-        fname2 = f'{input}_{ref}.jpeg'
-        savepath1 = dirpath + '/' + fname1
-        savepath2 = dirpath + '/' + fname2
+    fname1 = f'{input}_{ref}.png'
+    fname2 = f'{input}_{ref}.jpeg'
+    savepath1 = dirpath + '/' + fname1
+    savepath2 = dirpath + '/' + fname2
 
-        utils.save_image(img, savepath1, normalize=True, range=(-1, 1))
-        utils.save_image(img, savepath2, normalize=True, range=(-1, 1))
+    utils.save_image(img, savepath1, normalize=True, range=(-1, 1))
+    utils.save_image(img, savepath2, normalize=True, range=(-1, 1))
 
-        if use_wandb:
-            # wandbpath1 = wandb.run.dir + '/' + mode + '_' + fname1
-            wandbpath2 = wandb.run.dir + '/' + mode + '_' + fname2
-            utils.save_image(img, wandbpath2, normalize=True, range=(-1, 1))
+    if use_wandb:
+        # wandbpath1 = wandb.run.dir + '/' + mode + '_' + fname1
+        wandbpath2 = wandb.run.dir + '/' + mode + '_' + fname2
+        utils.save_image(img, wandbpath2, normalize=True, range=(-1, 1))
 
+    img.cpu()
+    del img
+    torch.cuda.empty_cache()
 
 
 def save_batch_images(batch_num, images, config, use_wandb):
