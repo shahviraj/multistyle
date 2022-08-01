@@ -27,7 +27,7 @@ import contextual_loss.functional as FCX
 from multistyle_utils import *
 
 use_wandb = True
-run_name = '10 styles'
+run_name = '8 styles std'
 run_desc = 'baseline multistyle + use sep dirnet + no inversion code mixing + use low contextual loss with wt 0.002  + use original generator to generate w codes for style mixing'
 
 hyperparam_defaults = dict(
@@ -48,11 +48,11 @@ hyperparam_defaults = dict(
             #'arcane_caitlyn.png',
             #'art.png',
             'arcane_jinx.png',
-            'jojo.png',
+           # 'jojo.png',
             'jojo_yasuho.png',
             #'sketch.png',
             #'arcane_viktor.png',
-            'arcane_jayce.png',
+            #'arcane_jayce.png',
             #'arcane_caitlyn.png',
             #'titan.jpeg',
             'audrey.jpg',
@@ -120,7 +120,7 @@ hyperparam_defaults = dict(
     num_iter = 500,
     dir_act = 'tanh', # options ['tanh', 'relu' , None (for identity)]
     init = 'identity',
-    weight_type = 'sep',
+    weight_type = 'std',
     inv_method = 'e4e',
     log_interval = 100,
     learning_rate = 2e-3,
