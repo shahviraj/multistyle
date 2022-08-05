@@ -24,14 +24,13 @@ from copy import deepcopy
 from id_loss import IDLoss
 import contextual_loss.functional as FCX
 
-<<<<<<< HEAD
 use_wandb = True
 run_name = 'multistyle_baseline_og_ctx_10_styles'
 run_desc = 'baseline multistyle + 10 styles +  use contextual loss with wt 0.01 + use e4e inversion + use original generator to generate w codes for style mixing'
-=======
-use_wandb = False
-run_name = 'multistyle_baseline_low_ctx_sep_sty_mix_no_7'
-run_desc = 'baseline multistyle + use sep dirnet + use inversion code mixing only at row 2 (for shape) + for style mixing, use 5 and use 7 onwards (just like before) + use low contextual loss with wt 0.002  + use original generator to generate w codes for style mixing'
+# =======
+# use_wandb = False
+# run_name = 'multistyle_baseline_low_ctx_sep_sty_mix_no_7'
+# run_desc = 'baseline multistyle + use sep dirnet + use inversion code mixing only at row 2 (for shape) + for style mixing, use 5 and use 7 onwards (just like before) + use low contextual loss with wt 0.002  + use original generator to generate w codes for style mixing'
 
 hyperparam_defaults = dict(
     learning = True,
