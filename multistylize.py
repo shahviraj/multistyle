@@ -27,9 +27,8 @@ import contextual_loss.functional as FCX
 from multistyle_utils import *
 
 use_wandb = True
-
-run_name = 'jojogan_sweep'
-run_desc = 'baseline multistyle + use sep dirnet + use inversion code mixing only at row 2 (for shape) + for style mixing, use 5 and use 7 onwards (just like before) + use low contextual loss with wt 0.002  + use original generator to generate w codes for style mixing'
+run_name = '4styles2_sep'
+run_desc = 'baseline multistyle + use sep dirnet + for style mixing, use 7 onwards (just like before) + use low contextual loss with wt 0.002  + use original generator to generate w codes for style mixing'
 
 hyperparam_defaults = dict(
     learning = True,
@@ -48,9 +47,9 @@ hyperparam_defaults = dict(
     names = [
             #'arcane_caitlyn.png',
             #'art.png',
-            'arcane_jinx.png',
+            #'arcane_jinx.png',
            # 'jojo.png',
-            'jojo_yasuho.png',
+            #'jojo_yasuho.png',
             #'sketch.png',
             #'arcane_viktor.png',
             #'jojo.png',
@@ -62,11 +61,11 @@ hyperparam_defaults = dict(
             #'audrey.jpg',
             #'arcane_texture.jpeg',
             #'cheryl.jpg',
-            #'flower.jpeg',
-            #'elliee.jpeg',
-            #'yukako.jpeg',
+            'flower.jpeg',
+            'elliee.jpeg',
+            'yukako.jpeg',
             #'marilyn.jpg',
-            #'water.jpeg',
+            'water.jpeg',
             #'matisse.jpeg',
             #'audrey2.jpg',
             #'star.jpg',
@@ -379,7 +378,7 @@ for idx in tqdm(range(config['num_iter'])):
 
     if config['id_loss'] or config['ctx_loss']:
         # id loss
-        rand_img = generator(dirnet(mean_w), input_is_latent=True)
+        rand_img=generator(dirnet(mean_w), input_is_latent=True)
         if config['id_loss']:
             with torch.no_grad():
                 o_rand_img = original_generator(mean_w, input_is_latent=True)
