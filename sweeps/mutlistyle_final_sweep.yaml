@@ -1,0 +1,67 @@
+program: multistylize.py
+name: multistyle_final_sweep
+project: multistyle_final
+method: grid
+metric:
+  goal: minimize
+  name: loss
+parameters:
+  names:
+    values: [
+          [
+          'arcane_jinx.png',
+          'sketch.png',
+          'jojo_yasuho.png',
+          #'art.png',
+          #'jojo.png',
+          #'arcane_jayce.png',
+          #'arcane_caitlyn.png',
+          #'titan.jpeg',
+          'audrey.jpg',
+          #'arcane_texture.jpeg',
+          #'cheryl.jpg',
+          'flower.jpeg',
+          'elliee.jpeg',
+          'yukako.jpeg',
+          'marilyn.jpg',
+          'water.jpeg',
+          #'matisse.jpeg',
+          'audrey2.jpg',
+          'star.jpg',
+          #'greeneye.jpg',
+          'mark.jpg'],
+        [
+        #'arcane_jinx.png',
+        'sketch.png',
+        'jojo_yasuho.png',
+        'art.png',
+        #'jojo.png',
+        #'arcane_jayce.png',
+        'arcane_caitlyn.png',
+        #'titan.jpeg',
+        'audrey.jpg',
+        #'arcane_texture.jpeg',
+        #'cheryl.jpg',
+        'flower.jpeg',
+        #'elliee.jpeg',
+        #'yukako.jpeg',
+        #'marilyn.jpg',
+        'water.jpeg',
+        'matisse.jpeg',
+        'audrey2.jpg',
+        'star.jpg',
+        'greeneye.jpg',
+        'mark.jpg' ]
+    ]
+
+  inv_method:
+    values: ['e4e', 'restyle']
+
+  ctx_loss_w:
+    values: [0.005, 0.0075, 0.010]
+
+  num_iter:
+    values: [300, 1000]
+
+  alpha:
+    values: [0.3, 0.5, 0.7]

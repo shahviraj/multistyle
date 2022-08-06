@@ -63,7 +63,7 @@ def get_savepath(config):
     for name in config['names']:
         dirname = dirname + f'_{ref_code[strip_path_extension(name)]}'
 
-    dirname = dirname + f'_ctx_wt_{config["ctx_loss_w"]}_n_iter_{config["num_iter"]}_type_{config["weight_type"]}'
+    dirname = dirname + f'_ctx_wt_{config["ctx_loss_w"]}_n_iter_{config["num_iter"]}_type_{config["weight_type"]}_inv_method_{config["inv_method"]}'
     dirpath = os.path.join(config['savepath'], dirname)
 
     if not os.path.exists(dirpath):
@@ -81,7 +81,7 @@ def save_single_image(mode,i,j, img, config, use_wandb):
     for name in config['names']:
         dirname = dirname + f'_{ref_code[strip_path_extension(name)]}'
 
-    dirname = dirname + f'_ctx_wt_{config["ctx_loss_w"]}_n_iter_{config["num_iter"]}_type_{config["weight_type"]}'
+    dirname = dirname + f'_ctx_wt_{config["ctx_loss_w"]}_n_iter_{config["num_iter"]}_type_{config["weight_type"]}_inv_method_{config["inv_method"]}_init_{config["init"]}'
 
     dirpath = os.path.join(config['savepath'], dirname, mode)
 
@@ -106,7 +106,7 @@ def save_single_image(mode,i,j, img, config, use_wandb):
     savepath1 = dirpath + '/' + fname1
     savepath2 = dirpath + '/' + fname2
 
-    utils.save_image(img, savepath1, normalize=True, range=(-1, 1))
+    #utils.save_image(img, savepath1, normalize=True, range=(-1, 1))
     utils.save_image(img, savepath2, normalize=True, range=(-1, 1))
 
     if use_wandb:
@@ -124,7 +124,7 @@ def save_batch_images(batch_num, images, config, use_wandb):
     for name in config['names']:
         dirname = dirname + f'_{ref_code[strip_path_extension(name)]}'
 
-    dirname = dirname + f'_ctx_wt_{config["ctx_loss_w"]}_n_iter_{config["num_iter"]}_type_{config["weight_type"]}'
+    dirname = dirname + f'_ctx_wt_{config["ctx_loss_w"]}_n_iter_{config["num_iter"]}_type_{config["weight_type"]}_inv_method_{config["inv_method"]}_init_{config["init"]}'
     dirpath = os.path.join(config['savepath'], dirname, 'full_random')
 
     if not os.path.exists(dirpath):
