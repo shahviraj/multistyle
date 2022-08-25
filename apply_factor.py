@@ -4,7 +4,7 @@ import torch
 from torchvision import utils
 
 from model import Generator
-
+import os
 
 if __name__ == "__main__":
     torch.set_grad_enabled(False)
@@ -61,9 +61,11 @@ if __name__ == "__main__":
 
     trunc = g.mean_latent(4096)
 
-    latent = torch.randn(args.n_sample, 512, device=args.device)
-    latent = g.get_latent(latent)
-
+    #latent = torch.randn(args.n_sample, 512, device=args.device)
+    #latent = g.get_latent(latent)
+    inv_code_path = os.path.join(f'../../models/multistyle/e4e_inversion_codes',
+                                 f'yukako_aligned.pt')
+    latent = torch.load(inv_code_path)['latent']
     direction = args.degree * eigvec[:, args.index].unsqueeze(0)
 
     img, _ = g(
@@ -87,7 +89,7 @@ if __name__ == "__main__":
 
     grid = utils.save_image(
         torch.cat([img1, img, img2], 0),
-        f"{args.out_prefix}_index-{args.index}_degree-{args.degree}.png",
+        f"/home/vjshah3/research/outputs/multistyle/results/sefa/{args.out_prefix}_index-{args.index}_degree-{args.degree}.jpeg",
         normalize=True,
         range=(-1, 1),
         nrow=args.n_sample,
