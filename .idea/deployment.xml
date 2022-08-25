@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
-  <component name="PublishConfigData" autoUpload="Always" promptOnRemoteOverwrite="CHECK_TIMESTAMP" serverName="vjshah3@192.17.102.30:22" remoteFilesAllowedToDisappearOnAutoupload="false" autoUploadExternalChanges="true">
+  <component name="PublishConfigData" autoUpload="Always" promptOnRemoteOverwrite="CHECK_TIMESTAMP" serverName="vjshah3@192.17.102.30:22" remoteFilesAllowedToDisappearOnAutoupload="false" autoUploadExternalChanges="true" compareModeInSync="TIMESTAMP">
     <serverData>
       <paths name="vjshah3@192.17.102.30:22">
         <serverdata>
