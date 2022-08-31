@@ -1,3 +1,6 @@
+import os
+os.environ['LD_LIBRARY_PATH'] = '/usr/local/cuda-9.0/lib64/'
+
 import math
 import random
 import functools

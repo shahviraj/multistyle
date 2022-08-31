@@ -17,7 +17,7 @@ from tqdm import tqdm
 #import wandb
 from model import *
 import glob
-use_wandb=True
+use_wandb=False
 if use_wandb:
     wandb.init(
                project="multistyle_ctx",
@@ -34,7 +34,7 @@ model_path = glob.glob(model_dir + f'{n_styles}styles_*/*.pt')
 # Load original generator
 #
 generator = Generator(1024, latent_dim, 8, 2).to(device)
-ckpt = torch.load(model_path[1], map_location=lambda storage, loc: storage)
+ckpt = torch.load(model_path[0], map_location=lambda storage, loc: storage)
 generator.load_state_dict(ckpt["g"], strict=False)
 
 config = ckpt['config']
@@ -85,7 +85,8 @@ my_ws, aligned_facelist = prepare_inputs(config)
 
 stylized_my_w = dirnet(my_ws.unsqueeze(1).repeat([1, n_styles , 1, 1]))
 
-for i in range(6,12):
+torch.manual_seed(10)
+for i in range(8,12):
     for j in range(1,5):
         myw = stylized_my_w[0,2].unsqueeze(0)
         z = torch.randn(1, latent_dim, device=device)
@@ -96,3 +97,12 @@ for i in range(6,12):
         img = generator(myw, input_is_latent=True)
         display_image(utils.make_grid(img, normalize=True, range=(-1, 1)), title=f'random gen, i : {i}, j: {j}',
                   save=False, use_wandb=use_wandb)
+#
+# import matplotlib as mpl
+# mpl.rcParams['figure.dpi'] = 100
+# for i in range(20):
+#     z = torch.randn(1, latent_dim, device=device)
+#     w = generator.get_latent(z).unsqueeze(1).repeat(1, generator.n_latent, 1)
+#     img = generator(w, input_is_latent=True)
+#     display_image(utils.make_grid(img, normalize=True, range=(-1, 1)), title='random gen',
+#                   save=False, use_wandb=use_wandb)
