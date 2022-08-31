@@ -27,7 +27,18 @@ input_code = {
     'ritik2' : 12,
     'ran2' : 13,
     'robert2' : 14,
-    'brad' : 15
+    'brad' : 15,
+    'Chris' : 16,
+    'Gakki' : 17,
+    'Green_Lantern' : 18,
+    'Morgan' : 19,
+    'Obama' : 20,
+    'Oprah' : 21,
+    'Pichai' : 22,
+    'Rock' : 23,
+    'Scarlett' : 24,
+    'Su' : 25,
+    'Yui' : 26
     }
 
 ref_code = {
@@ -52,8 +63,24 @@ ref_code = {
             'star': 19,
             'audrey2': 20,
             'greeneye' : 21,
-            'mark': 22
-        }
+            'mark': 22,
+            'moana': 23,
+            'anastasia': 24,
+            'brave': 25,
+            'detroit': 26,
+            'digital_painting_jing': 27,
+            'doc_brown': 28,
+            'joker':29,
+            'mermaid':30,
+            'picasso':31,
+            'pocahontas':32,
+            'room_girl':33,
+            'speed_paint':34,
+            'titan_armin': 35,
+            'titan_erwin':36,
+            'titan_historia':37,
+            'zbrush_girl': 38
+    }
 
 def strip_path_extension(path):
    return  os.path.splitext(path)[0]
@@ -63,7 +90,7 @@ def get_savepath(config):
     for name in config['names']:
         dirname = dirname + f'_{ref_code[strip_path_extension(name)]}'
 
-    dirname = dirname + f'_ctx_wt_{config["ctx_loss_w"]}_n_iter_{config["num_iter"]}_type_{config["weight_type"]}_inv_method_{config["inv_method"]}'
+    dirname = dirname + f'_ctx_wt_{config["ctx_loss_w"]}_n_iter_{config["num_iter"]}_type_{config["weight_type"]}_inv_method_{config["inv_method"]}_init_{config["init"]}'
     dirpath = os.path.join(config['savepath'], dirname)
 
     if not os.path.exists(dirpath):
