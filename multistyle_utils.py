@@ -28,7 +28,7 @@ input_code = {
     'ran2' : 13,
     'robert2' : 14,
     'brad' : 15,
-    'Chris' : 16,
+    'Chris2' : 16,
     'Gakki' : 17,
     'Green_Lantern' : 18,
     'Morgan' : 19,

@@ -1,0 +1,75 @@
+program: multistylize.py
+name: multistyle_simple_sweep
+project: multistyle_simple
+method: grid
+metric:
+  goal: minimize
+  name: loss
+parameters:
+  names:
+    values: [
+            [
+              'arcane_caitlyn.png',
+              'elliee.jpeg',
+              'water.jpeg',
+              'mark.jpg',
+              'anastasia.jpg',
+              'detroit.jpg',
+              'mermaid.jpg',
+              'speed_paint.jpg',
+              'titan_armin.jpg',
+              'titan_erwin.jpg',
+              'titan_historia.jpg',
+              'zbrush_girl.jpg'
+            ],
+        [
+          'arcane_jinx.png',
+          'jojo_yasuho.png',
+          'sketch.png',
+          'audrey.jpg',
+          'flower.jpeg',
+          'elliee.jpeg',
+          'yukako.jpeg',
+          'marilyn.jpg'
+        ],
+        [
+          'flower.jpeg',
+          'elliee.jpeg',
+          'yukako.jpeg',
+          'marilyn.jpg',
+          'water.jpeg',
+          'audrey2.jpg',
+          'star.jpg',
+          'mark.jpg'
+        ],
+        [
+          'arcane_jinx.png',
+          'jojo_yasuho.png',
+          'sketch.png',
+          'audrey.jpg'
+        ],
+        [
+          'water.jpeg',
+          'audrey2.jpg',
+          'star.jpg',
+          'mark.jpg'
+        ],
+        [
+          'flower.jpeg',
+          'elliee.jpeg',
+          'yukako.jpeg',
+          'marilyn.jpg'
+        ]
+    ]
+
+  inv_method:
+    values: ['e4e']
+
+  ctx_loss_w:
+    values: [0.005]
+
+  num_iter:
+    values: [1000]
+
+  alpha:
+    values: [0.7]

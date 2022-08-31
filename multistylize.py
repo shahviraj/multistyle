@@ -26,8 +26,8 @@ import contextual_loss.functional as FCX
 
 from multistyle_utils import *
 
-use_wandb = False
-run_name = 'multistyle_sweep'
+use_wandb = True
+run_name = 'jojogan_sweep'
 
 run_desc = 'baseline multistyle + use sep dirnet + for style mixing, use 7 onwards (just like before) + use low contextual loss with wt 0.002  + use original generator to generate w codes for style mixing'
 
@@ -39,7 +39,7 @@ hyperparam_defaults = dict(
     ctx_loss= True,
     mixed_inv = True,
     preserve_shape = False,
-    ctx_loss_w = 0.002,
+    ctx_loss_w = 0.005,
     id_loss_w = 2e-3,
     verbose = 'less', # set to `full` to save all the progress to wandb
     inv_mix = [],
@@ -62,9 +62,9 @@ hyperparam_defaults = dict(
             #'audrey.jpg',
             #'arcane_texture.jpeg',
             #'cheryl.jpg',
-            'flower.jpeg',
-            'elliee.jpeg',
-            'yukako.jpeg',
+            #'flower.jpeg',
+            #'elliee.jpeg',
+            #'yukako.jpeg',
             #'marilyn.jpg',
             #'water.jpeg',
             #'matisse.jpeg',
@@ -75,7 +75,24 @@ hyperparam_defaults = dict(
             #'cute2.jpg',
             #'greeneye.jpg',
             #'paint1.jpg',
-            #'mark.jpg'
+            #'mark.jpg',
+            # 'moana.jpg',
+            # 'anastasia.jpg',
+            # 'brave.jpg',
+            # 'detroit.jpg',
+            # 'digital_painting_jing.jpg',
+            # 'doc_brown.jpg',
+            # 'joker.jpg',
+            # 'mermaid.jpg',
+            # 'picasso.jpg',
+            # 'pocahontas.jpg',
+            # 'room_girl.jpg',
+            # 'speed_paint.jpg',
+            # 'titan_armin.jpg',
+            # 'titan_erwin.jpg',
+            'titan_historia.jpg',
+            # 'zbrush_girl.jpg',
+
              ],#, 'jojo.png'],
     filenamelist = [
                     'iu.jpeg',
@@ -94,6 +111,17 @@ hyperparam_defaults = dict(
                     'ran2.jpg',
                     'ritik2.jpg',
                     'robert2.jpg',
+                    'Chris2.jpg',
+                    'Gakki.jpg',
+                    'Green_Lantern.jpg',
+                    'Morgan.jpg',
+                    'Obama.jpg',
+                    'Oprah.jpg',
+                    'Pichai.jpg',
+                    'Rock.jpg',
+                    'Scarlett.jpg',
+                    'Su.jpg',
+                    'Yui.jpg',
                     ], #, ],
     cross_names = [
             'art.png',
@@ -116,7 +144,23 @@ hyperparam_defaults = dict(
             'audrey2.jpg',
             'star.jpg',
             'greeneye.jpg',
-            'mark.jpg'
+            'mark.jpg',
+            'moana.jpg',
+            'anastasia.jpg',
+            'brave.jpg',
+            'detroit.jpg',
+            'digital_painting_jing.jpg',
+            'doc_brown.jpg',
+            'joker.jpg',
+            'mermaid.jpg',
+            'picasso.jpg',
+            'pocahontas.jpg',
+            'room_girl.jpg',
+            'speed_paint.jpg',
+            'titan_armin.jpg',
+            'titan_erwin.jpg',
+            'titan_historia.jpg',
+            'zbrush_girl.jpg',
                 ],
     preserve_color = False,
     per_style_iter = None,
@@ -200,7 +244,6 @@ def prepare_inputs(config):
         if os.path.exists(inv_code_path):
             my_w = torch.load(inv_code_path)['latent']
         else:
-
             if config['inv_method'] == 'e4e':
                 my_w = e4e_projection(aligned_face, inv_code_path, device)
             elif config['inv_method'] == 'restyle':
@@ -429,14 +472,16 @@ original_generator.cpu()
 del original_generator
 torch.cuda.empty_cache()
 
-# samples for cross stylizations
-_, extra_latents = prepare_targets(config, cross=True)
-
 # Save the fine-tuned generator and dirnet
 savepath = get_savepath(config)
 torch.save(
     {"g": generator.state_dict(), "dirnet": dirnet.state_dict(), "config": dict(config)},
     savepath)
+
+print("saved the model at: ", savepath)
+
+# samples for cross stylizations
+_, extra_latents = prepare_targets(config, cross=True)
 
 # Try on new images
 with torch.no_grad():
