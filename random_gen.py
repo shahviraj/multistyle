@@ -34,7 +34,7 @@ model_path = glob.glob(model_dir + f'{n_styles}styles_*/*.pt')
 # Load original generator
 #
 generator = Generator(1024, latent_dim, 8, 2).to(device)
-ckpt = torch.load(model_path[0], map_location=lambda storage, loc: storage)
+ckpt = torch.load(model_path[1], map_location=lambda storage, loc: storage)
 generator.load_state_dict(ckpt["g"], strict=False)
 
 config = ckpt['config']
@@ -84,11 +84,11 @@ def prepare_inputs(config):
 my_ws, aligned_facelist = prepare_inputs(config)
 
 stylized_my_w = dirnet(my_ws.unsqueeze(1).repeat([1, n_styles , 1, 1]))
-
-torch.manual_seed(10)
-for i in range(8,12):
+print(model_path)
+torch.manual_seed(655445)
+for i in range(2,7):
     for j in range(1,5):
-        myw = stylized_my_w[0,2].unsqueeze(0)
+        myw = stylized_my_w[0,1].unsqueeze(0)
         z = torch.randn(1, latent_dim, device=device)
         #w = generator.get_latent(z).unsqueeze(1).repeat(1, generator.n_latent, 1)
         # keep z completely random (not necessarily from w+ space)

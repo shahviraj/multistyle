@@ -22,51 +22,51 @@ parameters:
               'titan_historia.jpg',
               'zbrush_girl.jpg'
             ],
-        [
-          'arcane_jinx.png',
-          'jojo_yasuho.png',
-          'sketch.png',
-          'audrey.jpg',
-          'flower.jpeg',
-          'elliee.jpeg',
-          'yukako.jpeg',
-          'marilyn.jpg'
-        ],
-        [
-          'flower.jpeg',
-          'elliee.jpeg',
-          'yukako.jpeg',
-          'marilyn.jpg',
-          'water.jpeg',
-          'audrey2.jpg',
-          'star.jpg',
-          'mark.jpg'
-        ],
-        [
-          'arcane_jinx.png',
-          'jojo_yasuho.png',
-          'sketch.png',
-          'audrey.jpg'
-        ],
-        [
-          'water.jpeg',
-          'audrey2.jpg',
-          'star.jpg',
-          'mark.jpg'
-        ],
-        [
-          'flower.jpeg',
-          'elliee.jpeg',
-          'yukako.jpeg',
-          'marilyn.jpg'
-        ]
+#        [
+#          'arcane_jinx.png',
+#          'jojo_yasuho.png',
+#          'sketch.png',
+#          'audrey.jpg',
+#          'flower.jpeg',
+#          'elliee.jpeg',
+#          'yukako.jpeg',
+#          'marilyn.jpg'
+#        ],
+#        [
+#          'flower.jpeg',
+#          'elliee.jpeg',
+#          'yukako.jpeg',
+#          'marilyn.jpg',
+#          'water.jpeg',
+#          'audrey2.jpg',
+#          'star.jpg',
+#          'mark.jpg'
+#        ],
+#        [
+#          'arcane_jinx.png',
+#          'jojo_yasuho.png',
+#          'sketch.png',
+#          'audrey.jpg'
+#        ],
+#        [
+#          'water.jpeg',
+#          'audrey2.jpg',
+#          'star.jpg',
+#          'mark.jpg'
+#        ],
+#        [
+#          'flower.jpeg',
+#          'elliee.jpeg',
+#          'yukako.jpeg',
+#          'marilyn.jpg'
+#        ]
     ]
 
   inv_method:
     values: ['e4e']
 
   ctx_loss_w:
-    values: [0.005]
+    values: [0.01]
 
   num_iter:
     values: [1000]
