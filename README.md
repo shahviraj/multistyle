@@ -1,10 +1,11 @@
 # MultiStyleGAN
 [![arXiv](https://img.shields.io/badge/arXiv-2112.11641-b31b1b.svg)](https://arxiv.org/pdf/2210.04120.pdf)
 
-![](teasers/teaser_msg.png)
-
 This is the PyTorch implementation of [MultiStyleGAN: Multiple One-shot Face Stylizations using a Single GAN](https://arxiv.org/pdf/2210.04120.pdf).
 
+![](teasers/teaser_msg.png)
+
+Our MultiStyleGAN method can stylize any input face image to multiple reference styles simultaneously by fine-tuning a single pre-trained generator while requiring only one image example of each style. Above results show stylizations of input images (left column) produced by a single generator fine-tuned on 12 reference styles (top row).
 
 >**Abstract:**<br>
 
