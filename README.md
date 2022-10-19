@@ -13,7 +13,7 @@ Image stylization aims at applying a reference style to arbitrary input images. 
 ## Citation
 If you use this code or ideas from our paper, please cite our paper:
 ```
-@article{chong2021jojogan,
+@article{shah2022multistyle,
   title={MultiStyleGAN: Multiple One-shot Face Stylizations using a Single GAN},
   author={Shah, Viraj and Lazebnik, Svetlana},
   journal={arXiv preprint arXiv:2210.04120},
